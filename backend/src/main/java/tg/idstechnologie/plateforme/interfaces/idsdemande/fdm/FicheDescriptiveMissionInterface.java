@@ -1,0 +1,13 @@
+package tg.idstechnologie.plateforme.interfaces.idsdemande.fdm;
+
+import org.springframework.data.domain.Pageable;
+import tg.idstechnologie.plateforme.models.idsdemande.fdm.FicheDescriptiveMission;
+import tg.idstechnologie.plateforme.response.ResponseModel;
+
+public interface FicheDescriptiveMissionInterface {
+    public ResponseModel createEntity(FicheDescriptiveMission ficheDescriptiveMission);
+    public ResponseModel updateEntity(FicheDescriptiveMission ficheDescriptiveMission);
+    public ResponseModel getAllEntityNotDeleted(Pageable pageable);
+    public ResponseModel getOneEntityNotDeleted(String ref);
+    public ResponseModel deleteOneEntityNotDeleted(String ref);
+}
