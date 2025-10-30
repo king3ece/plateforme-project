@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-// Imports des APIs (commentés pour utiliser des données fictives)
 import { workflowsAPI } from "../../api/workflows";
 import { usersAPI } from "../../api/users";
 import { postesAPI } from "../../api/postes";
 
-// Imports des types TypeScript pour les entités du workflow
 import {
   TypeProcessus,
   Validateur,
@@ -14,7 +12,6 @@ import {
 import { User } from "../../types/User";
 import { Poste } from "../../types/Poste";
 
-// Imports des composants UI pour l'interface utilisateur
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -45,145 +42,86 @@ import { toast } from "sonner";
 import { validators } from "../../utils/validators";
 
 export const WorkflowsPage = () => {
-  // États pour stocker les données des types de processus, validateurs, utilisateurs et postes
   const [typeProcessus, setTypeProcessus] = useState<TypeProcessus[]>([]);
   const [selectedProcessus, setSelectedProcessus] =
     useState<TypeProcessus | null>(null);
   const [validateurs, setValidateurs] = useState<Validateur[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [postes, setPostes] = useState<Poste[]>([]);
-
-  // États pour gérer l'ouverture des dialogues (modales)
+  const [isLoading, setIsLoading] = useState(false);
   const [isProcessusDialogOpen, setIsProcessusDialogOpen] = useState(false);
   const [isValidateurDialogOpen, setIsValidateurDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [validateurType, setValidateurType] = useState<"user" | "poste">("user");
 
-  // États pour les données des formulaires
   const [processusFormData, setProcessusFormData] =
-    useState<CreateTypeProcessusDTO>({ code: "", libelle: "" });
+    useState<CreateTypeProcessusDTO>({
+      code: "",
+      libelle: "",
+    });
+
   const [validateurFormData, setValidateurFormData] =
     useState<CreateValidateurDTO>({
       typeProcessusId: 0,
       ordre: 1,
     });
-  const [validateurType, setValidateurType] = useState<"user" | "poste">(
-    "user"
-  );
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Données fictives pour simuler l'interface (remplace les appels API)
-  // Ces données sont utilisées pour un aperçu sans backend
-  const mockTypeProcessus: TypeProcessus[] = [
-    { id: 1, code: "VAL_CONGES", libelle: "Validation congés" },
-    { id: 2, code: "VAL_DOCS", libelle: "Validation documents" },
-    { id: 3, code: "VAL_ACHATS", libelle: "Validation achats" },
-  ];
-
-  const mockUsers: User[] = [
-    { id: 1, name: "Alice", lastName: "Dupont" },
-    { id: 2, name: "Bob", lastName: "Martin" },
-    { id: 3, name: "Charlie", lastName: "Durand" },
-  ];
-
-  const mockPostes: Poste[] = [
-    { id: 1, libelle: "Directeur RH" },
-    { id: 2, libelle: "Manager" },
-    { id: 3, libelle: "Comptable" },
-  ];
-
-  const mockValidateurs: Record<number, Validateur[]> = {
-    1: [
-      {
-        id: 1,
-        typeProcessusId: 1,
-        ordre: 1,
-        user: mockUsers[0], // Alice Dupont
-        poste: null,
-      },
-      {
-        id: 2,
-        typeProcessusId: 1,
-        ordre: 2,
-        user: null,
-        poste: mockPostes[0], // Directeur RH
-      },
-    ],
-    2: [
-      {
-        id: 3,
-        typeProcessusId: 2,
-        ordre: 1,
-        user: mockUsers[1], // Bob Martin
-        poste: null,
-      },
-    ],
-    3: [], // Aucun validateur pour ce processus
-  };
-
-  // useEffect pour charger les données initiales au montage du composant
   useEffect(() => {
-    loadTypeProcessus(); // Charge les types de processus
-    loadUsers(); // Charge les utilisateurs
-    loadPostes(); // Charge les postes
+    loadTypeProcessus();
+    loadUsers();
+    loadPostes();
   }, []);
 
-  // useEffect pour charger les validateurs quand un processus est sélectionné
   useEffect(() => {
     if (selectedProcessus) {
-      loadValidateurs(selectedProcessus.id); // Charge les validateurs pour le processus sélectionné
+      loadValidateurs(selectedProcessus.id);
     }
   }, [selectedProcessus]);
 
-  // Fonction pour charger les types de processus (remplacée par des données fictives)
   const loadTypeProcessus = async () => {
     try {
-      // Appel API commenté : const data = await workflowsAPI.getAllTypeProcessus();
-      // Simulation avec données fictives
-      setTypeProcessus(mockTypeProcessus);
-      // toast.success("Types de processus chargés"); // Optionnel pour feedback
+      const data = await workflowsAPI.getAllTypeProcessus();
+      setTypeProcessus(data);
     } catch (error) {
+      console.error("Error loading type processus:", error);
       toast.error("Erreur lors du chargement des types de processus");
     }
   };
 
-  // Fonction pour charger les validateurs d'un processus spécifique (remplacée par des données fictives)
   const loadValidateurs = async (typeProcessusId: number) => {
     try {
-      // Appel API commenté : const data = await workflowsAPI.getValidateursByProcessus(typeProcessusId);
-      // Simulation avec données fictives
-      setValidateurs(mockValidateurs[typeProcessusId] || []);
+      const data = await workflowsAPI.getValidateursByProcessus(typeProcessusId);
+      setValidateurs(data);
     } catch (error) {
+      console.error("Error loading validateurs:", error);
       toast.error("Erreur lors du chargement des validateurs");
     }
   };
 
-  // Fonction pour charger les utilisateurs (remplacée par des données fictives)
   const loadUsers = async () => {
     try {
-      // Appel API commenté : const data = await usersAPI.getAll();
-      // Simulation avec données fictives
-      setUsers(mockUsers);
+      const data = await usersAPI.getAll();
+      setUsers(data);
     } catch (error) {
+      console.error("Error loading users:", error);
       toast.error("Erreur lors du chargement des utilisateurs");
     }
   };
 
-  // Fonction pour charger les postes (remplacée par des données fictives)
   const loadPostes = async () => {
     try {
-      // Appel API commenté : const data = await postesAPI.getAll();
-      // Simulation avec données fictives
-      setPostes(mockPostes);
+      const data = await postesAPI.getAll();
+      setPostes(data);
     } catch (error) {
+      console.error("Error loading postes:", error);
       toast.error("Erreur lors du chargement des postes");
     }
   };
 
-  // Gestionnaire pour créer un nouveau type de processus
   const handleCreateProcessus = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation des champs requis
     const codeError = validators.required(processusFormData.code, "Le code");
     const libelleError = validators.required(
       processusFormData.libelle,
@@ -196,20 +134,14 @@ export const WorkflowsPage = () => {
 
     setIsLoading(true);
     try {
-      // Appel API commenté : await workflowsAPI.createTypeProcessus(processusFormData);
-      // Simulation : Ajouter à la liste fictive
-      const newProcessus: TypeProcessus = {
-        id: typeProcessus.length + 1, // ID fictif
-        code: processusFormData.code,
-        libelle: processusFormData.libelle,
-      };
-      setTypeProcessus([...typeProcessus, newProcessus]);
+      await workflowsAPI.createTypeProcessus(processusFormData);
       toast.success("Type de processus créé avec succès");
       setIsProcessusDialogOpen(false);
       setProcessusFormData({ code: "", libelle: "" });
       setErrors({});
-      // loadTypeProcessus(); // Recharger si nécessaire, mais simulé ci-dessus
+      await loadTypeProcessus();
     } catch (error: any) {
+      console.error("Error creating processus:", error);
       toast.error(
         error.response?.data?.message || "Erreur lors de la création"
       );
@@ -218,7 +150,6 @@ export const WorkflowsPage = () => {
     }
   };
 
-  // Gestionnaire pour créer un validateur (pour un processus sélectionné)
   const handleCreateValidateur = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -227,7 +158,6 @@ export const WorkflowsPage = () => {
       return;
     }
 
-    // Validation des champs
     const newErrors: Record<string, string> = {};
     if (!validateurFormData.ordre) newErrors.ordre = "L'ordre est requis";
     if (validateurType === "user" && !validateurFormData.userId) {
@@ -244,24 +174,20 @@ export const WorkflowsPage = () => {
 
     setIsLoading(true);
     try {
-      // Appel API commenté : await workflowsAPI.createValidateur(data);
-      // Simulation : Ajouter à la liste fictive des validateurs
-      const newValidateur: Validateur = {
-        id: validateurs.length + 1, // ID fictif
+      const data: CreateValidateurDTO = {
         typeProcessusId: selectedProcessus.id,
         ordre: validateurFormData.ordre,
-        user: validateurType === "user" ? mockUsers.find(u => u.id === validateurFormData.userId) : null,
-        poste: validateurType === "poste" ? mockPostes.find(p => p.id === validateurFormData.posteId) : null,
+        userId: validateurType === "user" ? validateurFormData.userId : undefined,
+        posteId: validateurType === "poste" ? validateurFormData.posteId : undefined,
       };
-      const updatedValidateurs = [...validateurs, newValidateur];
-      setValidateurs(updatedValidateurs);
-      // Mettre à jour le mock pour persister
-      mockValidateurs[selectedProcessus.id] = updatedValidateurs;
+
+      await workflowsAPI.createValidateur(data);
       toast.success("Validateur ajouté avec succès");
       setIsValidateurDialogOpen(false);
       resetValidateurForm();
-      // loadValidateurs(selectedProcessus.id); // Recharger si nécessaire, mais simulé ci-dessus
+      await loadValidateurs(selectedProcessus.id);
     } catch (error: any) {
+      console.error("Error creating validateur:", error);
       toast.error(
         error.response?.data?.message || "Erreur lors de la création"
       );
@@ -270,58 +196,49 @@ export const WorkflowsPage = () => {
     }
   };
 
-  // Gestionnaire pour supprimer un type de processus
   const handleDeleteProcessus = async (id: number) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce type de processus ?"))
       return;
 
     try {
-      // Appel API commenté : await workflowsAPI.deleteTypeProcessus(id);
-      // Simulation : Supprimer de la liste fictive
-      setTypeProcessus(typeProcessus.filter(p => p.id !== id));
-      if (selectedProcessus?.id === id) setSelectedProcessus(null);
+      await workflowsAPI.deleteTypeProcessus(id);
       toast.success("Type de processus supprimé");
-      // loadTypeProcessus(); // Recharger si nécessaire, mais simulé ci-dessus
+      if (selectedProcessus?.id === id) setSelectedProcessus(null);
+      await loadTypeProcessus();
     } catch (error) {
+      console.error("Error deleting processus:", error);
       toast.error("Erreur lors de la suppression");
     }
   };
 
-  // Gestionnaire pour supprimer un validateur
   const handleDeleteValidateur = async (id: number) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce validateur ?")) return;
 
     try {
-      // Appel API commenté : await workflowsAPI.deleteValidateur(id);
-      // Simulation : Supprimer de la liste fictive
-      const updatedValidateurs = validateurs.filter(v => v.id !== id);
-      setValidateurs(updatedValidateurs);
-      if (selectedProcessus) {
-        mockValidateurs[selectedProcessus.id] = updatedValidateurs;
-      }
+      await workflowsAPI.deleteValidateur(id);
       toast.success("Validateur supprimé");
-      // loadValidateurs(selectedProcessus.id); // Recharger si nécessaire, mais simulé ci-dessus
+      if (selectedProcessus) {
+        await loadValidateurs(selectedProcessus.id);
+      }
     } catch (error) {
+      console.error("Error deleting validateur:", error);
       toast.error("Erreur lors de la suppression");
     }
   };
 
-  // Fonction pour réinitialiser le formulaire de validateur
   const resetValidateurForm = () => {
     setValidateurFormData({
       typeProcessusId: 0,
-      ordre: validateurs.length + 1, // Ordre suivant
+      ordre: validateurs.length + 1,
     });
     setValidateurType("user");
     setErrors({});
   };
 
-  // Rendu du composant : Structure de l'interface utilisateur
   return (
     <div className="space-y-6">
-      {/* En-tête avec titre et bouton pour créer un nouveau type de processus */}
       <div className="flex justify-between items-center">
-        <h1>Gestion des Workflows</h1>
+        <h1 className="text-2xl font-bold">Gestion des Workflows</h1>
         <Dialog
           open={isProcessusDialogOpen}
           onOpenChange={setIsProcessusDialogOpen}
@@ -336,7 +253,6 @@ export const WorkflowsPage = () => {
             <DialogHeader>
               <DialogTitle>Nouveau Type de Processus</DialogTitle>
             </DialogHeader>
-            {/* Formulaire pour créer un type de processus avec champs code et libelle */}
             <form onSubmit={handleCreateProcessus} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="code">Code *</Label>
@@ -350,7 +266,7 @@ export const WorkflowsPage = () => {
                     })
                   }
                   className={errors.code ? "border-destructive" : ""}
-                  placeholder="Ex: VAL_CONGES"
+                  placeholder="Ex: FDM"
                 />
                 {errors.code && (
                   <p className="text-destructive text-sm">{errors.code}</p>
@@ -368,7 +284,7 @@ export const WorkflowsPage = () => {
                     })
                   }
                   className={errors.libelle ? "border-destructive" : ""}
-                  placeholder="Ex: Validation congés"
+                  placeholder="Ex: Fiche Descriptive de Mission"
                 />
                 {errors.libelle && (
                   <p className="text-destructive text-sm">{errors.libelle}</p>
@@ -392,55 +308,65 @@ export const WorkflowsPage = () => {
         </Dialog>
       </div>
 
-      {/* Grille principale : Liste des types de processus à gauche, détails à droite */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Carte pour la liste des types de processus */}
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Types de Processus</CardTitle>
-            <CardDescription>Liste des processus de validation</CardDescription>
+            <CardDescription>
+              Sélectionnez un processus pour gérer ses validateurs
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {typeProcessus.map((processus) => (
-              <div
-                key={processus.id}
-                className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selectedProcessus?.id === processus.id
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary"
-                }`}
-                onClick={() => setSelectedProcessus(processus)}
-              >
-                <div className="flex justify-between items-center">
-                  <span>{processus.libelle}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteProcessus(processus.id);
-                    }}
+          <CardContent>
+            <div className="space-y-2">
+              {typeProcessus.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Aucun type de processus
+                </p>
+              ) : (
+                typeProcessus.map((processus) => (
+                  <div
+                    key={processus.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      selectedProcessus?.id === processus.id
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-accent"
+                    }`}
+                    onClick={() => setSelectedProcessus(processus)}
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium">{processus.libelle}</p>
+                        <Badge variant="outline" className="mt-1">
+                          {processus.code}
+                        </Badge>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProcessus(processus.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Carte pour les validateurs du processus sélectionné */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <div>
-                <CardTitle>
-                  {selectedProcessus
-                    ? `Validateurs - ${selectedProcessus.libelle}`
-                    : "Sélectionnez un processus"}
-                </CardTitle>
+                <CardTitle>Validateurs</CardTitle>
                 <CardDescription>
-                  Ordre de validation des demandes
+                  {selectedProcessus
+                    ? `Chaîne de validation pour: ${selectedProcessus.libelle}`
+                    : "Sélectionnez un processus pour voir ses validateurs"}
                 </CardDescription>
               </div>
               {selectedProcessus && (
@@ -449,22 +375,18 @@ export const WorkflowsPage = () => {
                   onOpenChange={setIsValidateurDialogOpen}
                 >
                   <DialogTrigger asChild>
-                    <Button onClick={resetValidateurForm}>
+                    <Button size="sm">
                       <Plus className="h-4 w-4 mr-2" />
-                      Ajouter
+                      Ajouter Validateur
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-md">
+                  <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Ajouter un Validateur</DialogTitle>
+                      <DialogTitle>Nouveau Validateur</DialogTitle>
                     </DialogHeader>
-                    {/* Formulaire pour ajouter un validateur : ordre, type (user/poste), puis sélection */}
-                    <form
-                      onSubmit={handleCreateValidateur}
-                      className="space-y-4"
-                    >
+                    <form onSubmit={handleCreateValidateur} className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="ordre">Ordre de validation *</Label>
+                        <Label htmlFor="ordre">Ordre *</Label>
                         <Input
                           id="ordre"
                           type="number"
@@ -479,9 +401,7 @@ export const WorkflowsPage = () => {
                           className={errors.ordre ? "border-destructive" : ""}
                         />
                         {errors.ordre && (
-                          <p className="text-destructive text-sm">
-                            {errors.ordre}
-                          </p>
+                          <p className="text-destructive text-sm">{errors.ordre}</p>
                         )}
                       </div>
 
@@ -489,34 +409,26 @@ export const WorkflowsPage = () => {
                         <Label>Type de validateur *</Label>
                         <Select
                           value={validateurType}
-                          onValueChange={(value: "user" | "poste") => {
-                            setValidateurType(value);
-                            setValidateurFormData({
-                              ...validateurFormData,
-                              userId: undefined,
-                              posteId: undefined,
-                            });
-                          }}
+                          onValueChange={(value: "user" | "poste") =>
+                            setValidateurType(value)
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="user">
-                              Utilisateur spécifique
-                            </SelectItem>
-                            <SelectItem value="poste">Par poste</SelectItem>
+                            <SelectItem value="user">Utilisateur spécifique</SelectItem>
+                            <SelectItem value="poste">Poste</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
-                      {/* Section conditionnelle pour sélectionner un utilisateur ou un poste */}
                       {validateurType === "user" ? (
                         <div className="space-y-2">
-                          <Label htmlFor="user">Utilisateur *</Label>
+                          <Label htmlFor="userId">Utilisateur *</Label>
                           <Select
                             value={validateurFormData.userId?.toString()}
-                            onValueChange={(value: string) =>
+                            onValueChange={(value) =>
                               setValidateurFormData({
                                 ...validateurFormData,
                                 userId: parseInt(value),
@@ -524,35 +436,28 @@ export const WorkflowsPage = () => {
                             }
                           >
                             <SelectTrigger
-                              className={
-                                errors.userId ? "border-destructive" : ""
-                              }
+                              className={errors.userId ? "border-destructive" : ""}
                             >
                               <SelectValue placeholder="Sélectionner un utilisateur" />
                             </SelectTrigger>
                             <SelectContent>
                               {users.map((user) => (
-                                <SelectItem
-                                  key={user.id}
-                                  value={user.id.toString()}
-                                >
+                                <SelectItem key={user.id} value={user.id.toString()}>
                                   {user.lastName} {user.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                           {errors.userId && (
-                            <p className="text-destructive text-sm">
-                              {errors.userId}
-                            </p>
+                            <p className="text-destructive text-sm">{errors.userId}</p>
                           )}
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          <Label htmlFor="poste">Poste *</Label>
+                          <Label htmlFor="posteId">Poste *</Label>
                           <Select
                             value={validateurFormData.posteId?.toString()}
-                            onValueChange={(value: string) =>
+                            onValueChange={(value) =>
                               setValidateurFormData({
                                 ...validateurFormData,
                                 posteId: parseInt(value),
@@ -560,32 +465,24 @@ export const WorkflowsPage = () => {
                             }
                           >
                             <SelectTrigger
-                              className={
-                                errors.posteId ? "border-destructive" : ""
-                              }
+                              className={errors.posteId ? "border-destructive" : ""}
                             >
                               <SelectValue placeholder="Sélectionner un poste" />
                             </SelectTrigger>
                             <SelectContent>
                               {postes.map((poste) => (
-                                <SelectItem
-                                  key={poste.id}
-                                  value={poste.id.toString()}
-                                >
+                                <SelectItem key={poste.id} value={poste.id.toString()}>
                                   {poste.libelle}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                           {errors.posteId && (
-                            <p className="text-destructive text-sm">
-                              {errors.posteId}
-                            </p>
+                            <p className="text-destructive text-sm">{errors.posteId}</p>
                           )}
                         </div>
                       )}
 
-                      {/* Boutons pour soumettre ou annuler le formulaire */}
                       <div className="flex justify-end gap-2">
                         <Button
                           type="button"
@@ -605,54 +502,79 @@ export const WorkflowsPage = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Affichage des validateurs pour le processus sélectionné */}
-            {selectedProcessus ? (
+            {!selectedProcessus ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <UsersIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Sélectionnez un type de processus pour gérer ses validateurs</p>
+              </div>
+            ) : validateurs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <UsersIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Aucun validateur configuré pour ce processus</p>
+                <p className="text-sm mt-2">
+                  Ajoutez des validateurs pour définir le workflow de validation
+                </p>
+              </div>
+            ) : (
               <div className="space-y-3">
-                {validateurs.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Aucun validateur configuré pour ce processus
-                  </p>
-                ) : (
-                  validateurs
-                    .sort((a, b) => a.ordre - b.ordre) // Tri par ordre de validation
-                    .map((validateur) => (
-                      <div
-                        key={validateur.id}
-                        className="flex items-center justify-between p-4 border rounded-lg bg-card"
-                      >
-                        <div className="flex items-center gap-4">
-                          {/* Badge pour afficher l'ordre de validation */}
-                          <Badge variant="outline" className="text-lg px-3">
-                            {validateur.ordre}
-                          </Badge>
-                          <div>
-                            {/* Affichage du nom de l'utilisateur ou du poste */}
-                            <p>
-                              {validateur.user
-                                ? `${validateur.user.lastName} ${validateur.user.name}`
-                                : validateur.poste?.libelle}
-                            </p>
-                            <p className="text-muted-foreground text-sm">
-                              {validateur.user ? "Utilisateur" : "Poste"}
-                            </p>
+                {validateurs
+                  .sort((a, b) => a.ordre - b.ordre)
+                  .map((validateur, index) => (
+                    <div
+                      key={validateur.id}
+                      className="p-4 border rounded-lg hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <Badge className="mt-1">{validateur.ordre}</Badge>
+                          <div className="flex-1">
+                            {validateur.user ? (
+                              <>
+                                <p className="font-medium">
+                                  {validateur.user.lastName} {validateur.user.name}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {validateur.user.email}
+                                </p>
+                                <Badge variant="outline" className="mt-2">
+                                  Utilisateur
+                                </Badge>
+                              </>
+                            ) : validateur.poste ? (
+                              <>
+                                <p className="font-medium">
+                                  {validateur.poste.libelle}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Code: {validateur.poste.code}
+                                </p>
+                                <Badge variant="outline" className="mt-2">
+                                  Poste
+                                </Badge>
+                              </>
+                            ) : (
+                              <p className="text-muted-foreground">
+                                Validateur non configuré
+                              </p>
+                            )}
                           </div>
                         </div>
-                        {/* Bouton pour supprimer le validateur */}
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteValidateur(validateur.id)}
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    ))
-                )}
+                      {index < validateurs.length - 1 && (
+                        <div className="ml-6 mt-2 text-muted-foreground text-sm">
+                          ↓ Puis...
+                        </div>
+                      )}
+                    </div>
+                  ))}
               </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">
-                Sélectionnez un type de processus pour voir ses validateurs
-              </p>
             )}
           </CardContent>
         </Card>
