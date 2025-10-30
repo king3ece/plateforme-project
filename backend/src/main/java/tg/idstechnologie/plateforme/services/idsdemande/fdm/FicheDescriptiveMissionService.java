@@ -283,7 +283,7 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
 
         FicheDescriptiveMission fdm = fdmOpt.get();
 
-        if (fdm.isDelete()) {
+        if (Boolean.TRUE.equals(fdm.getDelete())) {
             throw new ObjectNotValidException("FDM supprimée");
         }
 
