@@ -344,9 +344,30 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
             );
         } else if (decision == Choix_decisions.A_CORRIGER) {
             fdm.setTraite(false);
-            if (!validateurList.isEmpty()) {
-                fdm.setValidateurSuivant(validateurList.getFirst());
+            Validateur validateurActuel = fdm.getValidateurSuivant();
+
+            // Chercher le validateur précédent pour retourner la demande
+            Optional<Validateur> previousValidateur = validateurRepository.findPreviousValidator(
+                    fdm.getTypeProcessus().getId(),
+                    validateurActuel.getOrdre()
+            );
+
+            if (previousValidateur.isPresent()) {
+                // Retour au validateur précédent
+                fdm.setValidateurSuivant(previousValidateur.get());
+                emailService.sendMailNewFdm(
+                        previousValidateur.get().getUser().getEmail(),
+                        fdm.getId().toString(),
+                        "FDM retournée pour correction par " + currentUser.getLastName() + " " + currentUser.getName()
+                );
+            } else {
+                // Pas de validateur précédent, retour au premier validateur
+                if (!validateurList.isEmpty()) {
+                    fdm.setValidateurSuivant(validateurList.getFirst());
+                }
             }
+
+            // Notifier l'émetteur
             emailService.sendMailNewFdm(
                     fdm.getEmetteur().getEmail(),
                     fdm.getId().toString(),
