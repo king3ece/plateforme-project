@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import tg.idstechnologie.plateforme.interfaces.idsdemande.fdm.FicheDescriptiveMissionInterface;
 import tg.idstechnologie.plateforme.models.idsdemande.fdm.FicheDescriptiveMission;
+import tg.idstechnologie.plateforme.models.idsdemande.fdm.TraitementRequest;
 import tg.idstechnologie.plateforme.response.ResponseModel;
 
 @RestController
@@ -55,5 +56,35 @@ public class FicheDescriptiveMissionController {
     )
     {
         return ResponseEntity.ok(ficheDescriptiveMissionInterface.updateEntity(ficheDescriptiveMission));
+    }
+
+    @GetMapping("/my-requests")
+    public ResponseEntity<ResponseModel> getMyRequests(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        ResponseModel response = ficheDescriptiveMissionInterface.getMyRequests(pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/pending-validations")
+    public ResponseEntity<ResponseModel> getPendingValidations(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        ResponseModel response = ficheDescriptiveMissionInterface.getPendingValidations(pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/traiter")
+    public ResponseEntity<ResponseModel> traiterFDM(
+            @PathVariable Long id,
+            @RequestBody TraitementRequest request) {
+        ResponseModel response = ficheDescriptiveMissionInterface.traiterFDM(
+                id,
+                request.getDecision(),
+                request.getCommentaire()
+        );
+        return ResponseEntity.ok(response);
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tg.idstechnologie.plateforme.dao.idsdemande.TypeProcessusRepository;
 import tg.idstechnologie.plateforme.dao.idsdemande.ValidateurRepository;
 import tg.idstechnologie.plateforme.dao.idsdemande.fdm.FicheDescriptiveMissionRepository;
+import tg.idstechnologie.plateforme.dao.idsdemande.fdm.TraitementFicheDescriptiveMissionRepository;
 import tg.idstechnologie.plateforme.dao.user.UserRepository;
 import tg.idstechnologie.plateforme.exceptions.ObjectNotValidException;
 import tg.idstechnologie.plateforme.interfaces.idsdemande.fdm.FicheDescriptiveMissionInterface;
@@ -14,6 +15,8 @@ import tg.idstechnologie.plateforme.mail.EmailService;
 import tg.idstechnologie.plateforme.models.idsdemande.TypeProcessus;
 import tg.idstechnologie.plateforme.models.idsdemande.Validateur;
 import tg.idstechnologie.plateforme.models.idsdemande.fdm.FicheDescriptiveMission;
+import tg.idstechnologie.plateforme.models.idsdemande.fdm.TraitementFicheDescriptiveMission;
+import tg.idstechnologie.plateforme.utils.Choix_decisions;
 import tg.idstechnologie.plateforme.response.ResponseConstant;
 import tg.idstechnologie.plateforme.response.ResponseModel;
 //import tg.idstechnologie.plateforme.secu.user.*;
@@ -32,6 +35,7 @@ import java.util.Optional;
 public class FicheDescriptiveMissionService   implements FicheDescriptiveMissionInterface {
 
     private final FicheDescriptiveMissionRepository ficheDescriptiveMissionDao;
+    private final TraitementFicheDescriptiveMissionRepository traitementFicheDescriptiveMissionDao;
     private final CurrentUserService currentUserService;
     private final UserRepository userRepository;
     private final ValidateurRepository validateurRepository;
@@ -254,6 +258,105 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
             return new ResponseConstant().ok("Action effectuée avec succes");
         }
         return new ResponseConstant().noContent("Aucune correspondance trouvé");
+    }
+
+    @Override
+    public ResponseModel getMyRequests(Pageable pageable) {
+        User currentUser = currentUserService.getCurrentUser();
+        return new ResponseConstant().ok(ficheDescriptiveMissionDao.findByEmetteurId(currentUser.getId(), pageable));
+    }
+
+    @Override
+    public ResponseModel getPendingValidations(Pageable pageable) {
+        User currentUser = currentUserService.getCurrentUser();
+        return new ResponseConstant().ok(ficheDescriptiveMissionDao.findPendingValidationsByUserId(currentUser.getId(), pageable));
+    }
+
+    @Override
+    public ResponseModel traiterFDM(Long fdmId, Choix_decisions decision, String commentaire) {
+        User currentUser = currentUserService.getCurrentUser();
+
+        Optional<FicheDescriptiveMission> fdmOpt = ficheDescriptiveMissionDao.findById(fdmId);
+        if (fdmOpt.isEmpty()) {
+            throw new ObjectNotValidException("FDM introuvable");
+        }
+
+        FicheDescriptiveMission fdm = fdmOpt.get();
+
+        if (fdm.isDelete()) {
+            throw new ObjectNotValidException("FDM supprimée");
+        }
+
+        if (fdm.isTraite()) {
+            throw new ObjectNotValidException("FDM déjà traitée");
+        }
+
+        Validateur validateurSuivant = fdm.getValidateurSuivant();
+        if (validateurSuivant == null || !validateurSuivant.getUser().getId().equals(currentUser.getId())) {
+            throw new ObjectNotValidException("Vous n'êtes pas autorisé à traiter cette demande");
+        }
+
+        TraitementFicheDescriptiveMission traitement = new TraitementFicheDescriptiveMission();
+        traitement.setFicheDescriptiveDeMission(fdm);
+        traitement.setTraiteur(currentUser);
+        traitement.setDecision(decision);
+        traitement.setCommentaire(commentaire);
+        traitement.setDateTraitement(LocalDateTime.now());
+
+        traitementFicheDescriptiveMissionDao.save(traitement);
+
+        fdm.setTraitementPrecedent(traitement);
+
+        List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode(fdm.getTypeProcessus().getCode());
+
+        if (decision == Choix_decisions.VALIDER) {
+            Validateur validateurActuel = fdm.getValidateurSuivant();
+
+            Optional<Validateur> nextValidateur = validateurList.stream()
+                    .filter(v -> v.getOrdre() > validateurActuel.getOrdre())
+                    .min((v1, v2) -> Integer.compare(v1.getOrdre(), v2.getOrdre()));
+
+            if (nextValidateur.isPresent()) {
+                fdm.setValidateurSuivant(nextValidateur.get());
+                emailService.sendMailNewFdm(
+                        nextValidateur.get().getUser().getEmail(),
+                        fdm.getId().toString(),
+                        fdm.getEmetteur().getEmail()
+                );
+            } else {
+                fdm.setTraite(true);
+                fdm.setFavorable(true);
+                fdm.setValidateurSuivant(null);
+                emailService.sendMailNewFdm(
+                        fdm.getEmetteur().getEmail(),
+                        fdm.getId().toString(),
+                        "Votre FDM a été approuvée par tous les validateurs"
+                );
+            }
+        } else if (decision == Choix_decisions.REJETER) {
+            fdm.setTraite(true);
+            fdm.setFavorable(false);
+            fdm.setValidateurSuivant(null);
+            emailService.sendMailNewFdm(
+                    fdm.getEmetteur().getEmail(),
+                    fdm.getId().toString(),
+                    "Votre FDM a été rejetée: " + commentaire
+            );
+        } else if (decision == Choix_decisions.A_CORRIGER) {
+            fdm.setTraite(false);
+            if (!validateurList.isEmpty()) {
+                fdm.setValidateurSuivant(validateurList.getFirst());
+            }
+            emailService.sendMailNewFdm(
+                    fdm.getEmetteur().getEmail(),
+                    fdm.getId().toString(),
+                    "Votre FDM nécessite des corrections: " + commentaire
+            );
+        }
+
+        ficheDescriptiveMissionDao.save(fdm);
+
+        return new ResponseConstant().ok("Traitement effectué avec succès");
     }
 
     // Méthode pour calculer la durée
