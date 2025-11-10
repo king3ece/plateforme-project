@@ -74,9 +74,9 @@ export const subdivisionsAPI = {
   // ✅ Récupérer une subdivision par référence
   getByReference: async (reference: string): Promise<Subdivision> => {
     const response = await axiosInstance.get<ApiResponse<Subdivision>>(
-      `/subdivisions/get-subdivision/${reference}`
+      `/subdivisions/${reference}`
     );
-    return response.data.object; // ✅ Changé de .data à .object
+    return response.data.object;
   },
 
   // ✅ Créer une subdivision

@@ -73,9 +73,9 @@ export const postesAPI = {
   // ✅ Récupérer un poste par référence
   getByReference: async (reference: string): Promise<Poste> => {
     const response = await axiosInstance.get<ApiResponse<Poste>>(
-      `/postes/get-poste/${reference}`
+      `/postes/${reference}`
     );
-    return response.data.object; // ✅ Changé de .data à .object
+    return response.data.object;
   },
 
   // ✅ Créer un poste
