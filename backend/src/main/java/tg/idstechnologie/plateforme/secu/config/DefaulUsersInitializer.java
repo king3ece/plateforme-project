@@ -32,7 +32,7 @@ public class DefaulUsersInitializer implements CommandLineRunner {
                     .email(adminEmail)
                     .password(passwordEncoder.encode("admin123")) // ⚠️ change en prod
                     .roles(Role.ADMIN)
-                    .enabe(true)
+                    .enable(true)
                     .delete(false)
                     .build();
 
@@ -51,7 +51,7 @@ public class DefaulUsersInitializer implements CommandLineRunner {
                     .email(userEmail)
                     .password(passwordEncoder.encode("puser123")) // mot de passe par défaut
                     .roles(Role.USER)
-                    .enabe(true)
+                    .enable(true)
                     .delete(false) // ✅ ajout obligatoire
                     .build();
             userRepository.save(user);

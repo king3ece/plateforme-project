@@ -69,7 +69,7 @@ public class AuthenticationService {
                 .lastName(request.getLastName())
                 .reference(UUID.randomUUID().toString())
                 .email(request.getEmail())
-                .enabe(false) // Compte désactivé par défaut
+                .enable(false) // Compte désactivé par défaut
                 .delete(false)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .roles(Role.USER)
@@ -118,7 +118,7 @@ public class AuthenticationService {
         System.out.println(user.getEmail());
 
         // Vérifier si le compte est activé
-        if(!user.getEnabe()) {
+        if(!user.getEnable()) {
             throw new ObjectNotValidException("Compte non activé. Vérifiez votre email.");
         }
 
@@ -159,7 +159,7 @@ public class AuthenticationService {
         User user = userOpt.get();
 
         // Vérifier si le compte est déjà activé
-        if(user.getEnabe()) {
+        if(user.getEnable()) {
             return responseConstant.ok("Compte déjà activé");
         }
 
@@ -169,7 +169,7 @@ public class AuthenticationService {
         }
 
         // Activer le compte
-        user.setEnabe(true);
+        user.setEnable(true);
         user.setActivationToken(null); // Supprimer le token après utilisation
         user.setActivationTokenExpiry(null);
 
@@ -195,7 +195,7 @@ public class AuthenticationService {
         User user = userOpt.get();
 
         // Vérifier si le compte est déjà activé
-        if(user.getEnabe()) {
+        if(user.getEnable()) {
             throw new ObjectNotValidException("Ce compte est déjà activé");
         }
 

@@ -19,7 +19,7 @@ export interface User {
   poste?: Poste | null;
     createdAt?: string;
     updatedAt?: string;
-  enabe?: boolean; // valeur reçue du back (typo kept from backend)
+  enable?: boolean; // valeur reçue du back (typo kept from backend)
   isEnabled?: boolean; // alias plus lisible
 };
 

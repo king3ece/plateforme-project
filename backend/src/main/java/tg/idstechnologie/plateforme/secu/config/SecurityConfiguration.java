@@ -32,11 +32,11 @@ public class SecurityConfiguration {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/**")
+                        .requestMatchers("/api/auth/**","/h2-console/**")
                         .permitAll()       
                         .anyRequest()
                         .authenticated()
-                )
+                ).headers(headers -> headers.frameOptions().sameOrigin())
                 .sessionManagement((sessionManagement) ->
                         sessionManagement
                                 .sessionConcurrency((sessionConcurrency) ->

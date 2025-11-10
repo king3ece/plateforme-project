@@ -17,6 +17,7 @@ import { WorkflowsPage } from "./pages/admin/WorkflowsPage";
 import { UserRole } from "./types/User";
 import { Toaster } from "./components/ui/sonner";
 import "./styles/globals.css";
+import React from "react";
 
 // Composant pour la redirection racine
 const RootRedirect = () => {
