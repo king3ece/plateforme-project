@@ -76,7 +76,7 @@ public class User implements UserDetails {
     private Boolean delete = false;
 
     @Column(nullable = false, name = "is_enable")
-    private Boolean enabe = false;
+    private Boolean enable = false;
 
     // ✅ Bonus : sécurise encore plus avec un hook avant insertion
     @PrePersist
@@ -118,7 +118,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return enabe;
+        return enable;
     }
 
     // ✅ Getter/Setter personnalisé pour posteRef

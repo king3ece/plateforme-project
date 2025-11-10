@@ -16,6 +16,7 @@ export interface CreateTypeSubdivisionDTO {
 }
 
 export interface UpdateTypeSubdivisionDTO {
+  reference: string; // Obligatoire pour identifier l'entité à modifier
   code: string;
   libelle: string;
 }

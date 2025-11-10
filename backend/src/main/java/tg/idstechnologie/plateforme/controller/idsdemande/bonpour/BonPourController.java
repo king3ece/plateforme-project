@@ -1,36 +1,36 @@
-package tg.idstechnologie.plateforme.controller.idsdemande.fdm;
+package tg.idstechnologie.plateforme.controller.idsdemande.bonpour;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import tg.idstechnologie.plateforme.interfaces.idsdemande.fdm.FicheDescriptiveMissionInterface;
-import tg.idstechnologie.plateforme.models.idsdemande.fdm.FicheDescriptiveMission;
-import tg.idstechnologie.plateforme.models.idsdemande.fdm.TraitementRequest;
+import tg.idstechnologie.plateforme.interfaces.idsdemande.bonpour.BonPourInterface;
+import tg.idstechnologie.plateforme.models.idsdemande.bonpour.BonPour;
+import tg.idstechnologie.plateforme.models.idsdemande.bonpour.TraitementRequest;
 import tg.idstechnologie.plateforme.response.ResponseModel;
 
 @RestController
-@RequestMapping("/api/fdms")
+@RequestMapping("/api/bonpours")
 @RequiredArgsConstructor
-public class FicheDescriptiveMissionController {
+public class BonPourController {
 
-    private final FicheDescriptiveMissionInterface ficheDescriptiveMissionInterface;
+    private final BonPourInterface bonPourInterface;
 
     @GetMapping("/not-deleted")
     public ResponseEntity<ResponseModel> getAllEntityNotDeleted(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        ResponseModel response = ficheDescriptiveMissionInterface.getAllEntityNotDeleted(pageable);
+        ResponseModel response = bonPourInterface.getAllEntityNotDeleted(pageable);
         return ResponseEntity.ok(response);
     }
+
     @GetMapping("/{ref}")
     public ResponseEntity<ResponseModel> getOneEntityNotDeleted(
             @PathVariable String ref
     ) {
-
-        ResponseModel response = ficheDescriptiveMissionInterface.getOneEntityNotDeleted(ref);
+        ResponseModel response = bonPourInterface.getOneEntityNotDeleted(ref);
         return ResponseEntity.ok(response);
     }
 
@@ -38,24 +38,22 @@ public class FicheDescriptiveMissionController {
     public ResponseEntity<ResponseModel> deleteOneEntityNotDeleted(
             @PathVariable String ref
     ) {
-
-        ResponseModel response = ficheDescriptiveMissionInterface.deleteOneEntityNotDeleted(ref);
+        ResponseModel response = bonPourInterface.deleteOneEntityNotDeleted(ref);
         return ResponseEntity.ok(response);
     }
-    @PostMapping("/add-fdm")
+
+    @PostMapping("/add-bonpour")
     public ResponseEntity<ResponseModel> postEntity(
-            @RequestBody FicheDescriptiveMission ficheDescriptiveMission
-    )
-    {
-        return ResponseEntity.ok(ficheDescriptiveMissionInterface.createEntity(ficheDescriptiveMission));
+            @RequestBody BonPour bonPour
+    ) {
+        return ResponseEntity.ok(bonPourInterface.createEntity(bonPour));
     }
 
     @PutMapping()
     public ResponseEntity<ResponseModel> putEntity(
-            @RequestBody FicheDescriptiveMission ficheDescriptiveMission
-    )
-    {
-        return ResponseEntity.ok(ficheDescriptiveMissionInterface.updateEntity(ficheDescriptiveMission));
+            @RequestBody BonPour bonPour
+    ) {
+        return ResponseEntity.ok(bonPourInterface.updateEntity(bonPour));
     }
 
     @GetMapping("/my-requests")
@@ -63,7 +61,7 @@ public class FicheDescriptiveMissionController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        ResponseModel response = ficheDescriptiveMissionInterface.getMyRequests(pageable);
+        ResponseModel response = bonPourInterface.getMyRequests(pageable);
         return ResponseEntity.ok(response);
     }
 
@@ -72,15 +70,15 @@ public class FicheDescriptiveMissionController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size) {
         Pageable pageable = PageRequest.of(page, size);
-        ResponseModel response = ficheDescriptiveMissionInterface.getPendingValidations(pageable);
+        ResponseModel response = bonPourInterface.getPendingValidations(pageable);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/traiter")
-    public ResponseEntity<ResponseModel> traiterFDM(
+    public ResponseEntity<ResponseModel> traiterBonPour(
             @PathVariable Long id,
             @RequestBody TraitementRequest request) {
-        ResponseModel response = ficheDescriptiveMissionInterface.traiterFDM(
+        ResponseModel response = bonPourInterface.traiterBonPour(
                 id,
                 request.getDecision(),
                 request.getCommentaire()

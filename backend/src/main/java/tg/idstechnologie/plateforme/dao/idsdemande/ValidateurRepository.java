@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import tg.idstechnologie.plateforme.models.idsdemande.Validateur;
 
@@ -29,6 +30,15 @@ public interface ValidateurRepository  extends JpaRepository<Validateur, Long> {
             nativeQuery = true
     )
     List<Validateur> handleValidatorByProcessCode(String ref);
+
+    @Query(value = "SELECT v.* FROM validateurs v " +
+            "WHERE v.is_delete = false " +
+            "AND v.type_processus_id = :processusId " +
+            "AND v.ordre < :currentOrdre " +
+            "ORDER BY v.ordre DESC " +
+            "LIMIT 1",
+            nativeQuery = true)
+    Optional<Validateur> findPreviousValidator(@Param("processusId") Long processusId, @Param("currentOrdre") Integer currentOrdre);
 
 
 }

@@ -64,7 +64,7 @@ export const typeSubdivisionsAPI = {
 
   getByReference: async (reference: string): Promise<TypeSubdivision> => {
     const response = await axiosInstance.get<ApiResponse<TypeSubdivision>>(
-      `/type_subdivisions/get-type_subdivision/${reference}`
+      `/type_subdivisions/${reference}`
     );
     return response.data.object;
   },

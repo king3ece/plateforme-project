@@ -1,44 +1,115 @@
 import axiosInstance from './axios';
 import { TypeProcessus, Validateur, CreateTypeProcessusDTO, CreateValidateurDTO, UpdateValidateurDTO } from '../types/Workflow';
 
+interface ApiResponse<T> {
+  code: number;
+  message: string;
+  object: T;
+}
+
+interface PaginatedResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  pageable: any;
+  last: boolean;
+  first: boolean;
+  numberOfElements: number;
+  empty: boolean;
+}
+
 export const workflowsAPI = {
-  // Type Processus
-  getAllTypeProcessus: async (): Promise<TypeProcessus[]> => {
-    const response = await axiosInstance.get<TypeProcessus[]>('/type-processus');
-    return response.data;
+  // ============ TYPE PROCESSUS ============
+
+  // Récupérer tous les types de processus (avec pagination)
+  getAllTypeProcessus: async (page = 0, size = 30): Promise<TypeProcessus[]> => {
+    try {
+      const response = await axiosInstance.get<ApiResponse<PaginatedResponse<TypeProcessus>>>(
+        `/type_processus/not-deleted?page=${page}&size=${size}`
+      );
+      return response.data.object.content;
+    } catch (error) {
+      console.error('❌ Error fetching type processus:', error);
+      throw error;
+    }
   },
 
-  getTypeProcessusById: async (id: number): Promise<TypeProcessus> => {
-    const response = await axiosInstance.get<TypeProcessus>(`/type-processus/${id}`);
-    return response.data;
+  // Récupérer un type de processus par référence
+  getTypeProcessusByRef: async (reference: string): Promise<TypeProcessus> => {
+    const response = await axiosInstance.get<ApiResponse<TypeProcessus>>(
+      `/type_processus/${reference}`
+    );
+    return response.data.object;
   },
 
-  createTypeProcessus: async (data: CreateTypeProcessusDTO): Promise<TypeProcessus> => {
-    const response = await axiosInstance.post<TypeProcessus>('/type-processus', data);
-    return response.data;
+  // Créer un type de processus
+  createTypeProcessus: async (data: CreateTypeProcessusDTO): Promise<void> => {
+    await axiosInstance.post<ApiResponse<string>>(
+      '/type_processus/add-type_processus',
+      data
+    );
   },
 
-  deleteTypeProcessus: async (id: number): Promise<void> => {
-    await axiosInstance.delete(`/type-processus/${id}`);
+  // Mettre à jour un type de processus
+  updateTypeProcessus: async (data: TypeProcessus): Promise<void> => {
+    await axiosInstance.put<ApiResponse<string>>(
+      '/type_processus',
+      data
+    );
   },
 
-  // Validateurs
-  getValidateursByProcessus: async (typeProcessusId: number): Promise<Validateur[]> => {
-    const response = await axiosInstance.get<Validateur[]>(`/validateurs/processus/${typeProcessusId}`);
-    return response.data;
+  // Supprimer un type de processus (soft delete) par référence
+  deleteTypeProcessus: async (reference: string): Promise<void> => {
+    await axiosInstance.delete<ApiResponse<string>>(
+      `/type_processus/${reference}`
+    );
   },
 
-  createValidateur: async (data: CreateValidateurDTO): Promise<Validateur> => {
-    const response = await axiosInstance.post<Validateur>('/validateurs', data);
-    return response.data;
+  // ============ VALIDATEURS ============
+
+  // Récupérer tous les validateurs (avec pagination)
+  getAllValidateurs: async (page = 0, size = 30): Promise<Validateur[]> => {
+    try {
+      const response = await axiosInstance.get<ApiResponse<PaginatedResponse<Validateur>>>(
+        `/validateurs/not-deleted?page=${page}&size=${size}`
+      );
+      return response.data.object.content;
+    } catch (error) {
+      console.error('❌ Error fetching validateurs:', error);
+      throw error;
+    }
   },
 
-  updateValidateur: async (id: number, data: UpdateValidateurDTO): Promise<Validateur> => {
-    const response = await axiosInstance.put<Validateur>(`/validateurs/${id}`, data);
-    return response.data;
+  // Récupérer un validateur par référence
+  getValidateurByRef: async (reference: string): Promise<Validateur> => {
+    const response = await axiosInstance.get<ApiResponse<Validateur>>(
+      `/validateurs/${reference}`
+    );
+    return response.data.object;
   },
 
-  deleteValidateur: async (id: number): Promise<void> => {
-    await axiosInstance.delete(`/validateurs/${id}`);
+  // Créer un validateur
+  createValidateur: async (data: CreateValidateurDTO): Promise<void> => {
+    await axiosInstance.post<ApiResponse<string>>(
+      '/validateurs/add-validateur',
+      data
+    );
+  },
+
+  // Mettre à jour un validateur
+  updateValidateur: async (data: Validateur): Promise<void> => {
+    await axiosInstance.put<ApiResponse<string>>(
+      '/validateurs',
+      data
+    );
+  },
+
+  // Supprimer un validateur (soft delete) par référence
+  deleteValidateur: async (reference: string): Promise<void> => {
+    await axiosInstance.delete<ApiResponse<string>>(
+      `/validateurs/${reference}`
+    );
   },
 };

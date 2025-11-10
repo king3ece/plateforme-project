@@ -9,10 +9,10 @@ export interface TypeProcessus {
   reference: string;
   code: string;
   libelle: string;
-  typeDemande: TypeDemande;
-  subdivisionId: number;
-  createdAt?: string;
-  updatedAt?: string;
+  createDate?: string;
+  lastModified?: string;
+  createdBy?: number;
+  lastModifiedBy?: number;
 }
 
 export interface Validateur {
@@ -20,38 +20,35 @@ export interface Validateur {
   reference: string;
   typeProcessusId: number;
   ordre: number;
-  subdivisionId: number;
+  subdivisionId?: number;
   userId?: number;
-  posteId?: number;
   user?: User;
-  poste?: Poste;
+  subdivision?: Subdivision;
+  typeProcessus?: TypeProcessus;
 }
 
 export interface CreateTypeProcessusDTO {
   code: string;
   libelle: string;
-  subdivisions: Subdivision[];
-  typeDemande: TypeDemande;
 }
 
 export interface CreateValidateurDTO {
   typeProcessusId: number;
   ordre: number;
+  subdivisionId?: number; // Optionnel car peut être null dans le backend
   userId?: number;
-  user?: User;
-  posteId?: number;
-  poste: Poste;
 }
 
 export interface UpdateValidateurDTO {
+  reference: string; // Obligatoire pour identifier l'entité à modifier
   ordre?: number;
   userId?: number;
-  posteId?: number;
+  typeProcessusId?: number;
+  subdivisionId?: number;
 }
 
 export interface UpdateTypeProcessusDTO {
+  reference: string; // Obligatoire pour identifier l'entité à modifier
   libelle?: string;
   code?: string;
-  subdivision?: Subdivision[];
-  // typeSubdivision?: TypeSubdivision[]
 }

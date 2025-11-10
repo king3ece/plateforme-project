@@ -23,7 +23,9 @@ import { RapportFinancierForm } from "../../components/requests/RapportFinancier
 import { DemandeAchatForm } from "../../components/requests/DemandeAchat";
 import { BonPourForm } from "../../components/requests/BonPour";
 import { FicheDescriptiveMissionAPI } from "../../api/fdm";
+import { BonPourAPI } from "../../api/bonpour";
 import { CreateFDMRequest } from "../../types/Fdm";
+import { CreateBonPourRequest } from "../../types/BonPour";
 import { RequestType } from "../../types/request";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -153,19 +155,47 @@ export function RequestPage() {
 
   const handleSaveBonPour = async (formData: any): Promise<void> => {
     try {
+      if (!user) {
+        toast.error("Utilisateur non connecté. Veuillez vous reconnecter.");
+        return;
+      }
+
       setIsLoading(true);
 
-      // TODO: Créer le service BonPourAPI
-      // const result = await BonPourAPI.create(formData);
+      // Préparer les données selon le format attendu par l'API
+      const bonPourData: CreateBonPourRequest = {
+        utilisateurId: currentUserId,
+        typeProcessusId: 2, // TODO: Get the actual TypeProcessus ID for BONPOUR
+        beneficiaire: formData.beneficiaire,
+        motif: formData.motif,
+        lignes: formData.lignes.map((ligne: any) => ({
+          libelle: ligne.libelle,
+          montant: Number(ligne.montant) || 0,
+        })),
+      };
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("Bon pour à créer:", formData);
+      // Appel API via le service
+      const result = await BonPourAPI.create(bonPourData);
 
-      toast.success("Bon pour créé avec succès");
+      console.log("✅ Bon pour créé avec succès:", result);
+
+      toast.success("Bon pour créé avec succès", {
+        description: `Référence: ${result.reference}`,
+      });
+
       navigate("/user/demandes");
     } catch (error: any) {
-      console.error("❌ Erreur bon pour:", error);
-      toast.error("Erreur lors de l'enregistrement du bon pour");
+      console.error("❌ Erreur lors de la création du bon pour:", error);
+
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Erreur lors de la création du bon pour";
+
+      toast.error("Erreur lors de l'enregistrement", {
+        description: errorMessage,
+      });
+
       throw error;
     } finally {
       setIsLoading(false);
@@ -207,7 +237,13 @@ export function RequestPage() {
         );
 
       case RequestType.BONPOUR:
-        return <BonPourForm onSave={handleSaveBonPour} isLoading={isLoading} />;
+        return (
+          <BonPourForm
+            onSave={handleSaveBonPour}
+            isLoading={isLoading}
+            emetteurId={currentUserId}
+          />
+        );
 
       case RequestType.CONGE:
       case "FORMATION":

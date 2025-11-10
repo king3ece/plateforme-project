@@ -41,6 +41,30 @@ export const FicheDescriptiveMissionAPI = {
     }
   },
 
+  getMyRequests: async (page = 0, size = 30): Promise<FicheDescriptiveMission[]> => {
+    try {
+      const response = await axiosInstance.get<
+        ApiResponse<PaginatedResponse<FicheDescriptiveMission>>
+      >(`/fdms/my-requests?page=${page}&size=${size}`);
+      return response.data.object.content;
+    } catch (error) {
+      console.error("Error fetching my requests:", error);
+      throw error;
+    }
+  },
+
+  getPendingValidations: async (page = 0, size = 30): Promise<FicheDescriptiveMission[]> => {
+    try {
+      const response = await axiosInstance.get<
+        ApiResponse<PaginatedResponse<FicheDescriptiveMission>>
+      >(`/fdms/pending-validations?page=${page}&size=${size}`);
+      return response.data.object.content;
+    } catch (error) {
+      console.error("Error fetching pending validations:", error);
+      throw error;
+    }
+  },
+
   getById: async (id: number): Promise<FicheDescriptiveMission> => {
     const response = await axiosInstance.get<ApiResponse<FicheDescriptiveMission>>(
       `/fdms/${id}`
@@ -48,12 +72,12 @@ export const FicheDescriptiveMissionAPI = {
     return response.data.object;
   },
 
-    getByRef: async (reference: string): Promise<FicheDescriptiveMission> => {
-      const response = await axiosInstance.get<ApiResponse<FicheDescriptiveMission>>(
-        `/fdms/${reference}`
-      );
-      return response.data.object;
-    },
+  getByRef: async (reference: string): Promise<FicheDescriptiveMission> => {
+    const response = await axiosInstance.get<ApiResponse<FicheDescriptiveMission>>(
+      `/fdms/${reference}`
+    );
+    return response.data.object;
+  },
 
   create: async (data: CreateFDMRequest): Promise<FicheDescriptiveMission> => {
     const response = await axiosInstance.post<ApiResponse<FicheDescriptiveMission>>(
@@ -73,17 +97,16 @@ export const FicheDescriptiveMissionAPI = {
 
   traiter: async (
     id: number,
-    data: { statut: 'EN_ATTENTE' | 'VALIDÉ' | 'REJETÉ'; commentaire?: string }
-  ): Promise<FicheDescriptiveMission> => {
-    const response = await axiosInstance.post<ApiResponse<FicheDescriptiveMission>>(
-      `/fdm/${id}/traiter`,
+    data: { decision: 'VALIDER' | 'REJETER' | 'A_CORRIGER'; commentaire?: string }
+  ): Promise<void> => {
+    await axiosInstance.post<ApiResponse<string>>(
+      `/fdms/${id}/traiter`,
       data
     );
-    return response.data.object;
   },
 
   delete: async (reference: string): Promise<void> => {
-    await axiosInstance.delete<ApiResponse<void>>(`/fdm/delete-fdm/${reference}`);
+    await axiosInstance.delete<ApiResponse<void>>(`/fdms/${reference}`);
   },
 
   reglerFDM: async (id: number, regler: boolean): Promise<FicheDescriptiveMission> => {

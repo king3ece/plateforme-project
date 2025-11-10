@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   CheckCircle,
   XCircle,
@@ -26,201 +26,74 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../components/ui/select";
 import { Badge } from "../../components/ui/badge";
 import { toast } from "sonner";
-import {
-  RequestType,
-  RequestPriority,
-  RequestStatus,
-} from "../../types/request";
-
-interface Request {
-  id: string;
-  title: string;
-  description: string;
-  type: RequestType;
-  priority: RequestPriority;
-  status: RequestStatus;
-  createdAt: string;
-  createdBy: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-  dynamicFields?: Record<string, any>;
-  attachments?: string[];
-}
-
-// Données de test - À remplacer par un appel API
-const mockRequests: Request[] = [
-  {
-    id: "1",
-    title: "Demande de congé annuel",
-    description:
-      "Je souhaite prendre mes congés annuels pour raisons personnelles",
-    type: RequestType.CONGE,
-    priority: RequestPriority.MEDIUM,
-    status: RequestStatus.PENDING,
-    createdAt: "2024-01-15T10:30:00",
-    createdBy: {
-      id: "u1",
-      firstName: "Jean",
-      lastName: "Dupont",
-      email: "jean.dupont@example.com",
-    },
-    dynamicFields: {
-      startDate: "2024-02-01",
-      endDate: "2024-02-15",
-    },
-  },
-  {
-    id: "2",
-    title: "Formation TypeScript",
-    description:
-      "Besoin d'une formation avancée en TypeScript pour améliorer mes compétences",
-    type: RequestType.FORMATION,
-    priority: RequestPriority.HIGH,
-    status: RequestStatus.PENDING,
-    createdAt: "2024-01-16T14:20:00",
-    createdBy: {
-      id: "u2",
-      firstName: "Marie",
-      lastName: "Martin",
-      email: "marie.martin@example.com",
-    },
-    dynamicFields: {
-      trainingTitle: "TypeScript avancé et patterns",
-    },
-  },
-  {
-    id: "3",
-    title: "Achat de matériel informatique",
-    description:
-      "Besoin d'un nouvel ordinateur portable pour remplacer l'ancien",
-    type: RequestType.ACHAT,
-    priority: RequestPriority.URGENT,
-    status: RequestStatus.PENDING,
-    createdAt: "2024-01-17T09:00:00",
-    createdBy: {
-      id: "u3",
-      firstName: "Pierre",
-      lastName: "Dubois",
-      email: "pierre.dubois@example.com",
-    },
-    dynamicFields: {
-      amount: 1500,
-    },
-  },
-];
+import { FicheDescriptiveMissionAPI } from "../../api/fdm";
+import { FicheDescriptiveMission } from "../../types/Fdm";
 
 export function ValidationPage() {
-  const [requests, setRequests] = useState<Request[]>(mockRequests);
-  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  const [requests, setRequests] = useState<FicheDescriptiveMission[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<FicheDescriptiveMission | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectComment, setRejectComment] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterPriority, setFilterPriority] = useState<string>("all");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const typeLabels: Record<RequestType, string> = {
-    [RequestType.FDM]: "Fiche descriptive de mission",
-    [RequestType.RFDM]: "Rapport Financier de mission",
-    [RequestType.DDA]: "Demande d'achat",
-    [RequestType.BONPOUR]: "Bon pour",
-    [RequestType.CONGE]: "Congé",
-    [RequestType.FORMATION]: "Formation",
-    [RequestType.ACHAT]: "Achat",
-    [RequestType.MISSION]: "Mission",
-    [RequestType.AUTRE]: "Autre",
-  };
+  useEffect(() => {
+    loadPendingValidations();
+  }, []);
 
-  const priorityLabels: Record<RequestPriority, string> = {
-    [RequestPriority.LOW]: "Faible",
-    [RequestPriority.MEDIUM]: "Moyenne",
-    [RequestPriority.HIGH]: "Élevée",
-    [RequestPriority.URGENT]: "Urgente",
-  };
-
-  const statusLabels: Record<RequestStatus, string> = {
-    [RequestStatus.DRAFT]: "Brouillon",
-    [RequestStatus.PENDING]: "En attente",
-    [RequestStatus.APPROVED]: "Approuvée",
-    [RequestStatus.REJECTED]: "Rejetée",
-    [RequestStatus.IN_PROGRESS]: "En cours",
-    [RequestStatus.COMPLETED]: "Terminée",
-    [RequestStatus.CANCELLED]: "Annulée",
-  };
-
-  const priorityColors: Record<RequestPriority, string> = {
-    [RequestPriority.LOW]: "bg-gray-100 text-gray-700",
-    [RequestPriority.MEDIUM]: "bg-blue-100 text-blue-700",
-    [RequestPriority.HIGH]: "bg-orange-100 text-orange-700",
-    [RequestPriority.URGENT]: "bg-red-100 text-red-700",
-  };
-
-  const statusColors: Record<RequestStatus, string> = {
-    [RequestStatus.DRAFT]: "bg-gray-100 text-gray-700",
-    [RequestStatus.PENDING]: "bg-yellow-100 text-yellow-700",
-    [RequestStatus.APPROVED]: "bg-green-100 text-green-700",
-    [RequestStatus.REJECTED]: "bg-red-100 text-red-700",
-    [RequestStatus.IN_PROGRESS]: "bg-blue-100 text-blue-700",
-    [RequestStatus.COMPLETED]: "bg-purple-100 text-purple-700",
-    [RequestStatus.CANCELLED]: "bg-gray-100 text-gray-700",
+  const loadPendingValidations = async () => {
+    setIsLoading(true);
+    try {
+      const data = await FicheDescriptiveMissionAPI.getPendingValidations();
+      setRequests(data);
+    } catch (error) {
+      console.error("Error loading pending validations:", error);
+      toast.error("Erreur lors du chargement des demandes à valider");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const filteredRequests = requests.filter((request) => {
     const matchesSearch =
-      request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${request.createdBy.firstName} ${request.createdBy.lastName}`
+      request.nomProjet.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.lieuMission.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.objectifMission.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${request.emetteur.lastName} ${request.emetteur.name}`
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
 
-    const matchesType = filterType === "all" || request.type === filterType;
-    const matchesPriority =
-      filterPriority === "all" || request.priority === filterPriority;
-
-    return matchesSearch && matchesType && matchesPriority;
+    return matchesSearch;
   });
 
-  const handleViewDetails = (request: Request) => {
+  const handleViewDetails = (request: FicheDescriptiveMission) => {
     setSelectedRequest(request);
     setShowDetailsDialog(true);
   };
 
-  const handleApprove = async (request: Request) => {
+  const handleApprove = async (request: FicheDescriptiveMission) => {
     try {
       setIsProcessing(true);
-
-      // TODO: Remplacer par l'appel API réel
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === request.id ? { ...r, status: RequestStatus.APPROVED } : r
-        )
-      );
-
-      toast.success(`Demande "${request.title}" approuvée avec succès`);
+      await FicheDescriptiveMissionAPI.traiter(request.id, {
+        decision: "VALIDER",
+        commentaire: "",
+      });
+      toast.success(`Demande "${request.nomProjet}" approuvée avec succès`);
       setShowDetailsDialog(false);
+      await loadPendingValidations();
     } catch (error) {
+      console.error("Error approving request:", error);
       toast.error("Erreur lors de l'approbation de la demande");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleReject = (request: Request) => {
+  const handleReject = (request: FicheDescriptiveMission) => {
     setSelectedRequest(request);
     setRejectComment("");
     setShowDetailsDialog(false);
@@ -237,23 +110,16 @@ export function ValidationPage() {
 
     try {
       setIsProcessing(true);
-
-      // TODO: Remplacer par l'appel API réel avec le commentaire
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("Commentaire de rejet:", rejectComment);
-
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === selectedRequest.id
-            ? { ...r, status: RequestStatus.REJECTED }
-            : r
-        )
-      );
-
-      toast.success(`Demande "${selectedRequest.title}" rejetée`);
+      await FicheDescriptiveMissionAPI.traiter(selectedRequest.id, {
+        decision: "REJETER",
+        commentaire: rejectComment,
+      });
+      toast.success(`Demande "${selectedRequest.nomProjet}" rejetée`);
       setShowRejectDialog(false);
       setRejectComment("");
+      await loadPendingValidations();
     } catch (error) {
+      console.error("Error rejecting request:", error);
       toast.error("Erreur lors du rejet de la demande");
     } finally {
       setIsProcessing(false);
@@ -265,116 +131,19 @@ export function ValidationPage() {
       day: "2-digit",
       month: "long",
       year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
     });
   };
 
-  const renderDynamicFields = (request: Request) => {
-    if (!request.dynamicFields) return null;
-
-    const fields = [];
-
-    switch (request.type) {
-      case RequestType.CONGE:
-        fields.push(
-          <div key="dates" className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium text-gray-500">
-                Date de début
-              </Label>
-              <p className="text-sm mt-1">
-                {new Date(request.dynamicFields.startDate).toLocaleDateString(
-                  "fr-FR"
-                )}
-              </p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-gray-500">
-                Date de fin
-              </Label>
-              <p className="text-sm mt-1">
-                {new Date(request.dynamicFields.endDate).toLocaleDateString(
-                  "fr-FR"
-                )}
-              </p>
-            </div>
-          </div>
-        );
-        break;
-
-      case RequestType.FORMATION:
-        fields.push(
-          <div key="training">
-            <Label className="text-sm font-medium text-gray-500">
-              Titre de la formation
-            </Label>
-            <p className="text-sm mt-1">
-              {request.dynamicFields.trainingTitle}
-            </p>
-          </div>
-        );
-        break;
-
-      case RequestType.ACHAT:
-        fields.push(
-          <div key="amount">
-            <Label className="text-sm font-medium text-gray-500">
-              Montant estimé
-            </Label>
-            <p className="text-sm mt-1 font-semibold">
-              {request.dynamicFields.amount.toLocaleString("fr-FR")} FCFA
-            </p>
-          </div>
-        );
-        break;
-
-      case RequestType.MISSION:
-        fields.push(
-          <div key="mission" className="space-y-3">
-            <div>
-              <Label className="text-sm font-medium text-gray-500">
-                Destination
-              </Label>
-              <p className="text-sm mt-1">
-                {request.dynamicFields.missionDestination}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-500">
-                  Date de début
-                </Label>
-                <p className="text-sm mt-1">
-                  {new Date(request.dynamicFields.startDate).toLocaleDateString(
-                    "fr-FR"
-                  )}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-500">
-                  Date de fin
-                </Label>
-                <p className="text-sm mt-1">
-                  {new Date(request.dynamicFields.endDate).toLocaleDateString(
-                    "fr-FR"
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-        break;
-    }
-
-    return fields.length > 0 ? (
-      <div className="space-y-3 pt-4 border-t">{fields}</div>
-    ) : null;
-  };
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">
-      {/* En-tête */}
       <div className="flex-shrink-0 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
           Validation des demandes
@@ -384,10 +153,9 @@ export function ValidationPage() {
         </p>
       </div>
 
-      {/* Filtres et recherche */}
       <Card className="flex-shrink-0 mb-6">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <Label htmlFor="search" className="sr-only">
                 Rechercher
@@ -396,63 +164,24 @@ export function ValidationPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   id="search"
-                  placeholder="Rechercher par titre, description ou demandeur..."
+                  placeholder="Rechercher par projet, lieu, objectif ou demandeur..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
-
-            <div>
-              <Label htmlFor="filterType" className="sr-only">
-                Filtrer par type
-              </Label>
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Type de demande" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les types</SelectItem>
-                  {Object.values(RequestType).map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {typeLabels[type]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="filterPriority" className="sr-only">
-                Filtrer par priorité
-              </Label>
-              <Select value={filterPriority} onValueChange={setFilterPriority}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Priorité" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Toutes les priorités</SelectItem>
-                  {Object.values(RequestPriority).map((priority) => (
-                    <SelectItem key={priority} value={priority}>
-                      {priorityLabels[priority]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Liste des demandes */}
       <div className="flex-1 overflow-y-auto pr-2">
         {filteredRequests.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Filter className="h-12 w-12 text-gray-400 mb-4" />
               <p className="text-gray-500 text-center">
-                Aucune demande trouvée avec les filtres actuels
+                {searchTerm ? "Aucune demande trouvée avec les critères de recherche" : "Aucune demande en attente de validation"}
               </p>
             </CardContent>
           </Card>
@@ -467,29 +196,35 @@ export function ValidationPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge className={priorityColors[request.priority]}>
-                          {priorityLabels[request.priority]}
-                        </Badge>
-                        <Badge className={statusColors[request.status]}>
-                          {statusLabels[request.status]}
-                        </Badge>
+                        <Badge className="bg-blue-100 text-blue-800">FDM</Badge>
                         <Badge variant="outline">
-                          {typeLabels[request.type]}
+                          {request.typeProcessus?.libelle || "FDM"}
                         </Badge>
                       </div>
-                      <CardTitle className="text-lg">{request.title}</CardTitle>
+                      <CardTitle className="text-lg">{request.nomProjet}</CardTitle>
                       <CardDescription className="mt-1">
-                        Par {request.createdBy.firstName}{" "}
-                        {request.createdBy.lastName} •{" "}
-                        {formatDate(request.createdAt)}
+                        Par {request.emetteur.lastName}{" "}
+                        {request.emetteur.name} •{" "}
+                        {formatDate(request.dateDepart)}
                       </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {request.description}
-                  </p>
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-2">
+                      <span className="font-medium">Lieu:</span> {request.lieuMission}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-2">
+                      <span className="font-medium">Période:</span>{" "}
+                      {formatDate(request.dateDepart)} -{" "}
+                      {formatDate(request.dateProbableRetour)} ({request.dureeMission} jours)
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Budget estimatif:</span>{" "}
+                      {request.totalEstimatif.toLocaleString("fr-FR")} CFA
+                    </p>
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -500,30 +235,26 @@ export function ValidationPage() {
                       <Eye className="h-4 w-4" />
                       Voir détails
                     </Button>
-                    {request.status === RequestStatus.PENDING && (
-                      <>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleApprove(request)}
-                          disabled={isProcessing}
-                          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          Approuver
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleReject(request)}
-                          disabled={isProcessing}
-                          className="flex items-center gap-2"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Rejeter
-                        </Button>
-                      </>
-                    )}
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleApprove(request)}
+                      disabled={isProcessing}
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      Approuver
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleReject(request)}
+                      disabled={isProcessing}
+                      className="flex items-center gap-2"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      Rejeter
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -532,89 +263,118 @@ export function ValidationPage() {
         )}
       </div>
 
-      {/* Dialog détails */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Détails de la demande</DialogTitle>
+            <DialogTitle>Détails de la Fiche Descriptive de Mission</DialogTitle>
             <DialogDescription>
               Informations complètes sur la demande
             </DialogDescription>
           </DialogHeader>
 
           {selectedRequest && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <Badge className={priorityColors[selectedRequest.priority]}>
-                  {priorityLabels[selectedRequest.priority]}
-                </Badge>
-                <Badge className={statusColors[selectedRequest.status]}>
-                  {statusLabels[selectedRequest.status]}
-                </Badge>
-                <Badge variant="outline">
-                  {typeLabels[selectedRequest.type]}
-                </Badge>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium text-gray-500">
-                  Titre
-                </Label>
-                <p className="text-base font-semibold mt-1">
-                  {selectedRequest.title}
-                </p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium text-gray-500">
-                  Description
-                </Label>
-                <p className="text-sm mt-1">{selectedRequest.description}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-gray-500">
-                    Demandeur
-                  </Label>
-                  <p className="text-sm mt-1">
-                    {selectedRequest.createdBy.firstName}{" "}
-                    {selectedRequest.createdBy.lastName}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {selectedRequest.createdBy.email}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-500">
-                    Date de création
-                  </Label>
-                  <p className="text-sm mt-1">
-                    {formatDate(selectedRequest.createdAt)}
-                  </p>
-                </div>
-              </div>
-
-              {renderDynamicFields(selectedRequest)}
-
-              {selectedRequest.attachments &&
-                selectedRequest.attachments.length > 0 && (
+            <div className="space-y-6">
+              <div className="border-b pb-4">
+                <h3 className="font-semibold mb-3">Informations générales</h3>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      Pièces jointes
-                    </Label>
-                    <div className="mt-2 space-y-2">
-                      {selectedRequest.attachments.map((attachment, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 text-sm text-blue-600 hover:underline cursor-pointer"
-                        >
-                          📎 {attachment}
-                        </div>
-                      ))}
-                    </div>
+                    <p className="text-muted-foreground text-sm">
+                      Nom du projet
+                    </p>
+                    <p className="font-medium">{selectedRequest.nomProjet}</p>
                   </div>
-                )}
+                  <div>
+                    <p className="text-muted-foreground text-sm">
+                      Lieu de mission
+                    </p>
+                    <p className="font-medium">{selectedRequest.lieuMission}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-sm">
+                      Date de départ
+                    </p>
+                    <p>{formatDate(selectedRequest.dateDepart)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-sm">
+                      Date probable de retour
+                    </p>
+                    <p>{formatDate(selectedRequest.dateProbableRetour)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-sm">
+                      Durée de mission
+                    </p>
+                    <p>{selectedRequest.dureeMission} jour(s)</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-sm">Émetteur</p>
+                    <p>
+                      {selectedRequest.emetteur.lastName}{" "}
+                      {selectedRequest.emetteur.name}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-b pb-4">
+                <h3 className="font-semibold mb-3">Objectif de la mission</h3>
+                <p className="text-sm">{selectedRequest.objectifMission}</p>
+              </div>
+
+              <div className="border-b pb-4">
+                <h3 className="font-semibold mb-3">Estimations financières</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Per diem</span>
+                    <span className="font-medium">
+                      {selectedRequest.perdieme.toLocaleString("fr-FR")} CFA
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Transport</span>
+                    <span className="font-medium">
+                      {selectedRequest.transport.toLocaleString("fr-FR")} CFA
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Bon essence</span>
+                    <span className="font-medium">
+                      {selectedRequest.bonEssence.toLocaleString("fr-FR")} CFA
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Péage</span>
+                    <span className="font-medium">
+                      {selectedRequest.peage.toLocaleString("fr-FR")} CFA
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Laisser-passer</span>
+                    <span className="font-medium">
+                      {selectedRequest.laisserPasser.toLocaleString("fr-FR")} CFA
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Hôtel</span>
+                    <span className="font-medium">
+                      {selectedRequest.hotel.toLocaleString("fr-FR")} CFA
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span className="text-sm">Divers</span>
+                    <span className="font-medium">
+                      {selectedRequest.divers.toLocaleString("fr-FR")} CFA
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-blue-100 rounded">
+                    <span className="font-semibold">Total estimatif</span>
+                    <span className="font-bold text-blue-700">
+                      {selectedRequest.totalEstimatif.toLocaleString("fr-FR")} CFA
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -625,7 +385,7 @@ export function ValidationPage() {
             >
               Fermer
             </Button>
-            {selectedRequest?.status === RequestStatus.PENDING && (
+            {selectedRequest && (
               <>
                 <Button
                   variant="default"
@@ -654,7 +414,6 @@ export function ValidationPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog rejet avec commentaire */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
         <DialogContent>
           <DialogHeader>
@@ -669,7 +428,7 @@ export function ValidationPage() {
               <div>
                 <Label className="text-sm font-medium">Demande</Label>
                 <p className="text-sm mt-1 font-semibold">
-                  {selectedRequest.title}
+                  {selectedRequest.nomProjet}
                 </p>
               </div>
 
