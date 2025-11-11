@@ -103,6 +103,7 @@ export const SubdivisionsPage = () => {
         await subdivisionsAPI.update(updateData);
         toast.success("Subdivision modifiée avec succès");
       } else {
+        console.log("formData", formData);
         await subdivisionsAPI.create(formData);
         toast.success("Subdivision créée avec succès");
       }

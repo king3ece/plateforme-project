@@ -1,6 +1,7 @@
 package tg.idstechnologie.plateforme.models.base;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -18,6 +19,7 @@ import java.util.UUID;
 
 @Data
 @MappedSuperclass
+@JsonIgnoreProperties(ignoreUnknown = true)
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseTraitement {
     // Cette classe contien les attribut de base d'une demande

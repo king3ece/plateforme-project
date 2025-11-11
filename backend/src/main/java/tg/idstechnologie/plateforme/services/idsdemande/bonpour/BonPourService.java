@@ -102,11 +102,11 @@ public class BonPourService implements BonPourInterface {
             }
 
             emailService.sendMailNewFdm(validateur.getUser().getEmail(), savedBonPour.getId().toString(), emetteur.get().getEmail());
+
+            return new ResponseConstant().ok(savedBonPour);
         } else {
             throw new ObjectNotValidException("Aucun validateur configuré pour BONPOUR");
         }
-
-        return new ResponseConstant().ok("Bon pour créé avec succès");
     }
 
     @Override

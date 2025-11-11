@@ -39,8 +39,6 @@ export function RequestPage() {
   // Récupérer l'utilisateur connecté depuis le contexte d'auth
   // Utilise le hook `useAuth` fourni dans `src/hooks/useAuth.ts`
   const { user, isLoading: authLoading } = useAuth();
-  const currentUserId = user?.id ?? 0; // 0 temporaire si pas d'utilisateur (les handlers vérifient la présence)
-  const defaultTypeProcessusId = 1; // TODO: Mapper selon le type de demande
 
   const typeLabels: Record<RequestTypeUI, string> = {
     [RequestType.FDM]: "Fiche descriptive de mission",
@@ -65,8 +63,6 @@ export function RequestPage() {
 
       // Préparer les données selon le format attendu par l'API
       const fdmData: CreateFDMRequest = {
-        utilisateurId: currentUserId,
-        typeProcessusId: defaultTypeProcessusId,
         nomProjet: formData.nomProjet,
         lieuMission: formData.lieuMission,
         dateDepart: formData.dateDepart,
@@ -164,8 +160,6 @@ export function RequestPage() {
 
       // Préparer les données selon le format attendu par l'API
       const bonPourData: CreateBonPourRequest = {
-        utilisateurId: currentUserId,
-        typeProcessusId: 2, // TODO: Get the actual TypeProcessus ID for BONPOUR
         beneficiaire: formData.beneficiaire,
         motif: formData.motif,
         lignes: formData.lignes.map((ligne: any) => ({
@@ -219,7 +213,6 @@ export function RequestPage() {
           <MissionForm
             onSave={handleSaveFDM}
             isLoading={isLoading}
-            emetteurId={currentUserId}
           />
         );
 
@@ -241,7 +234,6 @@ export function RequestPage() {
           <BonPourForm
             onSave={handleSaveBonPour}
             isLoading={isLoading}
-            emetteurId={currentUserId}
           />
         );
 

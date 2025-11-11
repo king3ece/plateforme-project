@@ -29,14 +29,12 @@ interface BonPourProps {
   initialData?: Partial<BonPourData>;
   onSave: (data: BonPourData) => Promise<void>;
   isLoading?: boolean;
-  emetteurId: number;
 }
 
 export function BonPourForm({
   initialData,
   onSave,
   isLoading = false,
-  emetteurId,
 }: BonPourProps) {
   const [error, setError] = useState<string>("");
 

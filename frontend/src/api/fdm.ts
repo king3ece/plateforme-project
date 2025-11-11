@@ -1,9 +1,9 @@
 import axiosInstance from "./axios";
-import { 
-  FicheDescriptiveMission, 
-  CreateFDMRequest, 
+import {
+  FicheDescriptiveMission,
+  CreateFDMRequest,
   UpdateFDMRequest,
-  TraitementFicheDescriptiveMission 
+  TraitementDecision,
 } from "../types/Fdm";
 
 interface ApiResponse<T> {
@@ -65,13 +65,6 @@ export const FicheDescriptiveMissionAPI = {
     }
   },
 
-  getById: async (id: number): Promise<FicheDescriptiveMission> => {
-    const response = await axiosInstance.get<ApiResponse<FicheDescriptiveMission>>(
-      `/fdms/${id}`
-    );
-    return response.data.object;
-  },
-
   getByRef: async (reference: string): Promise<FicheDescriptiveMission> => {
     const response = await axiosInstance.get<ApiResponse<FicheDescriptiveMission>>(
       `/fdms/${reference}`
@@ -89,7 +82,7 @@ export const FicheDescriptiveMissionAPI = {
 
   update: async (fdm: UpdateFDMRequest): Promise<FicheDescriptiveMission> => {
     const response = await axiosInstance.put<ApiResponse<FicheDescriptiveMission>>(
-      "/fdm",
+      "/fdms",
       fdm
     );
     return response.data.object;
@@ -97,7 +90,7 @@ export const FicheDescriptiveMissionAPI = {
 
   traiter: async (
     id: number,
-    data: { decision: 'VALIDER' | 'REJETER' | 'A_CORRIGER'; commentaire?: string }
+    data: { decision: TraitementDecision; commentaire?: string }
   ): Promise<void> => {
     await axiosInstance.post<ApiResponse<string>>(
       `/fdms/${id}/traiter`,
@@ -111,7 +104,7 @@ export const FicheDescriptiveMissionAPI = {
 
   reglerFDM: async (id: number, regler: boolean): Promise<FicheDescriptiveMission> => {
     const response = await axiosInstance.put<ApiResponse<FicheDescriptiveMission>>(
-      "/fdm",
+      "/fdms",
       { id, regler }
     );
     return response.data.object;

@@ -1,40 +1,39 @@
 import { User } from "./User";
+import { TypeProcessus, Validateur } from "./Workflow";
+
+export type TraitementDecision = "VALIDER" | "REJETER" | "A_CORRIGER";
 
 /**
- * Tout les processus lié à FDM. Créer une demande, Traitement de la demande
+ * Traitement réalisé sur une FDM (avis d'un validateur)
  */
-// Représente un traitement lié à une FDM
 export interface TraitementFicheDescriptiveMission {
   id: number;
   reference: string;
   traiteur: User;
-  statut: "EN_ATTENTE" | "VALIDÉ" | "REJETÉ";
+  decision: TraitementDecision;
   commentaire?: string;
-  dateTraitement: string; // ISO string
+  dateTraitement: string;
 }
 
 export interface FicheDescriptiveMission {
   id: number;
   reference: string;
-  dateEmission: string; // ISO string
-  favorable?: boolean;
-  traite?: boolean;
+  dateEmission: string;
+  favorable: boolean;
+  traite: boolean;
 
-  // Relations
-  typeProcessusId: number;
-  validateurSuivantId?: number;
-  utilisateurId: number; // emetteur
-  traitementPrecedentId?: number;
+  emetteur: User;
+  typeProcessus?: TypeProcessus;
+  validateurSuivant?: Validateur | null;
+  traitementPrecedent?: TraitementFicheDescriptiveMission | null;
 
-  // Infos mission
   nomProjet: string;
   lieuMission: string;
-  dateDepart: string; // format YYYY-MM-DD
-  dateProbableRetour: string; // format YYYY-MM-DD
+  dateDepart: string;
+  dateProbableRetour: string;
   dureeMission: number;
   objectifMission: string;
 
-  // Estimations financières
   perdieme: number;
   transport: number;
   bonEssence: number;
@@ -44,19 +43,16 @@ export interface FicheDescriptiveMission {
   divers: number;
   totalEstimatif: number;
 
-  // Suivi administratif
-  dateReglement?: string;
+  dateReglement?: string | null;
   regler: boolean;
-  createDate: string;
-  createBy: string;
-  lastModified: string;
-  lastModifiedBy: string;
-  isDelete: boolean;
+  createDate?: string;
+  lastModified?: string;
+  createdBy?: number;
+  lastModifiedBy?: number;
+  delete?: boolean;
 }
 
 export interface CreateFDMRequest {
-  utilisateurId: number;
-  typeProcessusId: number;
   nomProjet: string;
   lieuMission: string;
   dateDepart: string;
@@ -90,5 +86,4 @@ export interface UpdateFDMRequest {
   regler?: boolean;
   favorable?: boolean;
   traite?: boolean;
-  validateurSuivantId?: number;
 }

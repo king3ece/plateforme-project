@@ -120,13 +120,14 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
         );
 
         List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode("FDM");
+        FicheDescriptiveMission newitem;
         if(!validateurList.isEmpty())
         {
 
             Validateur validateur = validateurList.getFirst();
             ficheDescriptiveMission.setValidateurSuivant(validateur);
             ficheDescriptiveMission.setDateEmission(LocalDateTime.now());
-            FicheDescriptiveMission newitem = ficheDescriptiveMissionDao.save(ficheDescriptiveMission);
+            newitem = ficheDescriptiveMissionDao.save(ficheDescriptiveMission);
             emailService.sendMailNewFdm(validateur.getUser().getEmail(), newitem.getId().toString(), emetteur.get().getEmail());
 
         } else {
@@ -134,7 +135,7 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
         }
 
 
-        return new ResponseConstant().ok("Action effectuée avec succes");
+        return new ResponseConstant().ok(newitem);
     }
 
     @Override

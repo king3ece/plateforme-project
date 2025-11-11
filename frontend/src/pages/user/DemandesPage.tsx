@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FicheDescriptiveMissionAPI } from "../../api/fdm";
-import { FicheDescriptiveMission } from "../../types/Fdm";
+import { FicheDescriptiveMission, TraitementDecision } from "../../types/Fdm";
 import { Button } from "../../components/ui/button";
 import {
   Table,
@@ -21,7 +21,7 @@ import {
 import { Plus, Eye } from "lucide-react";
 import { toast } from "sonner";
 
-type StatutFDM = "EN_ATTENTE" | "VALIDÉ" | "REJETÉ";
+type StatutFDM = TraitementDecision | "EN_ATTENTE";
 
 export const FDMPage = () => {
   const [fdms, setFdms] = useState<FicheDescriptiveMission[]>([]);
@@ -46,20 +46,26 @@ export const FDMPage = () => {
     }
   };
 
-  const getStatutBadge = (statut: StatutFDM) => {
-    const variants: Record<
-      StatutFDM,
-      {
-        variant: "default" | "secondary" | "destructive" | "outline";
-        label: string;
-      }
-    > = {
-      EN_ATTENTE: { variant: "secondary", label: "En attente" },
-      VALIDÉ: { variant: "outline", label: "Validée" },
-      REJETÉ: { variant: "destructive", label: "Rejetée" },
-    };
+  const statutConfig: Record<
+    StatutFDM,
+    { variant: "default" | "secondary" | "destructive" | "outline"; label: string }
+  > = {
+    EN_ATTENTE: { variant: "secondary", label: "En attente" },
+    VALIDER: { variant: "outline", label: "Validée" },
+    REJETER: { variant: "destructive", label: "Rejetée" },
+    A_CORRIGER: { variant: "default", label: "À corriger" },
+  };
 
-    const config = variants[statut];
+  const resolveStatut = (fdm: FicheDescriptiveMission): StatutFDM => {
+    if (!fdm.traitementPrecedent) {
+      return "EN_ATTENTE";
+    }
+    const decision = fdm.traitementPrecedent.decision;
+    return decision ?? "EN_ATTENTE";
+  };
+
+  const getStatutBadge = (statut: StatutFDM) => {
+    const config = statutConfig[statut] ?? statutConfig["EN_ATTENTE"];
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -139,11 +145,7 @@ export const FDMPage = () => {
                     {fdm.totalEstimatif.toLocaleString("fr-FR")} CFA
                   </TableCell>
                   <TableCell>
-                    {fdm.traitementPrecedent ? (
-                      getStatutBadge(fdm.traitementPrecedent.statut)
-                    ) : (
-                      <Badge variant="secondary">En attente</Badge>
-                    )}
+                    {getStatutBadge(resolveStatut(fdm))}
                   </TableCell>
                   <TableCell>{getReglementBadge(fdm.regler)}</TableCell>
                   <TableCell className="text-right">
@@ -290,11 +292,7 @@ export const FDMPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-muted-foreground text-sm">Statut</p>
-                    {selectedFDM.traitementPrecedent ? (
-                      getStatutBadge(selectedFDM.traitementPrecedent.statut)
-                    ) : (
-                      <Badge variant="secondary">En attente</Badge>
-                    )}
+                    {getStatutBadge(resolveStatut(selectedFDM))}
                   </div>
                   <div>
                     <p className="text-muted-foreground text-sm">Règlement</p>

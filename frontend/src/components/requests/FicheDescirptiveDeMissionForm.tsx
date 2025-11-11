@@ -11,7 +11,6 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { FileUpload } from "../../pages/user/FileUpload";
 import { Alert, AlertDescription } from "../ui/alert";
 import { AlertCircle } from "lucide-react";
 
@@ -35,10 +34,9 @@ interface MissionFormProps {
   initialData?: Partial<FDMFormData>;
   onSave: (data: FDMFormData) => Promise<void>;
   isLoading?: boolean;
-  emetteurId: number;
 }
 
-export function MissionForm({ initialData, onSave, isLoading, emetteurId }: MissionFormProps) {
+export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps) {
   const [error, setError] = useState<string>("");
 
   const {
@@ -69,7 +67,21 @@ export function MissionForm({ initialData, onSave, isLoading, emetteurId }: Miss
   const submit = async (formData: FDMFormData) => {
     setError("");
     try {
-      await onSave(formData);
+      const numericFields: Array<keyof FDMFormData> = [
+        "perdieme",
+        "transport",
+        "bonEssence",
+        "peage",
+        "laisserPasser",
+        "hotel",
+        "divers",
+      ];
+      const parsedData = { ...formData };
+      numericFields.forEach((field) => {
+        // react-hook-form peut renvoyer des strings pour les inputs number
+        parsedData[field] = Number(formData[field]) as FDMFormData[typeof field];
+      });
+      await onSave(parsedData);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Une erreur est survenue");
     }
