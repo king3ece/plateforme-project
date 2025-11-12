@@ -1,19 +1,27 @@
 # plateforme
 
 ## Apercu
-Plateforme web de gestion des demandes internes (FDM, bon pour, rapport financier, etc.) construite sur Spring Boot et React. L objectif actuel est de couvrir l enregistrement complet d une fiche descriptive de mission (FDM), son circuit de validation multi-validateurs, la creation de bons pour, ainsi que le suivi utilisateur cote front.
+Plateforme web de gestion des demandes internes (FDM, bons pour, rapports financiers, demandes d achat, etc.) construite sur Spring Boot et React. Le backend applique les workflows de validation (multi-validateurs, emailings) et le frontend offre des formulaires riches, des tableaux de suivi et des ecrans de validation par onglets.
 
 ## Fonctionnalites livrees
-- Creation FDM cote backend (validations fortes, calculs de duree et total, email au validateur) exposee via `/api/fdms/add-fdm` et consommee sur le front (formulaire dynamique, page de suivi, ecran de validation, recherche par validateur).
-- Gestion des decisions (valider, rejeter, a corriger) et propagation aux validateurs successifs avec notifications email automatises.
-- Nettoyage du contrat Bon Pour : le backend recupere l utilisateur connecte, calcule le total, retourne l objet cree et le front n envoie plus d identifiants fictifs.
-- Harmonisation des modeles front (`types/Fdm.ts`, `types/BonPour.ts`) avec les entites exposes par Spring (emetteur complet, validateur, traitement precedent, decisions normalisees).
-- API clients React mis a jour (`frontend/src/api/fdm.ts`, `frontend/src/api/bonpour.ts`) pour utiliser les bons endpoints (`/fdms`, `/bonpours`) et recuperer les donnees paginees.
-- UI FDM remani ee : formulaire `MissionForm`, page `FDMPage` (mes demandes) et `ValidationPage` (trafic en attente) consomment les nouveaux contrats et affichent les badges issus des decisions reelles.
-- Nouvelle batterie de tests Vitest :
-  - `src/api/__tests__/fdm.test.ts` garantit que les appels REST ciblent les bons endpoints.
-  - `src/components/requests/__tests__/FicheDescirptiveDeMissionForm.test.tsx` verifie le calcul automatique de la duree et la normalisation numerique avant soumission.
-- README converti en ASCII et enrichi pour tracer toutes les evolutions a date.
+- **FDM** : flux complet cote backend (`/api/fdms`) avec validations metier, calculs de duree/totaux, envoi d email au validateur suivant. Front : formulaire react-hook-form, onglet “Mes demandes” et “A valider” avec recherche, badges de statut et detail complet.
+- **Bon Pour** :
+  - Backend (`/api/bonpours`) utilise l utilisateur connecte, calcule le montant total et retourne l objet cree.
+  - Front : formulaire, onglet “Bon pour” dans *Mes demandes* + onglet de validation dedie (actions valider/rejeter/a corriger, affichage des lignes, commentaires).
+- **Rapport financier de mission (RFDM)** :
+  - Nouvelles entites (`RapportFinancierDeMission`, `TraitementRapportFinancierDeMission`), repository, service et controller (`/api/rfdms`).
+  - Meme logique de workflow : validations fortes, calcul des depenses, notifications email.
+  - Front : formulaire branche sur `RapportFinancierAPI`, onglets de listing/validation avec detail des couts.
+- **Demande d achat (DDA)** :
+  - Entites (`DemandeDachat`, `LigneDemandeAchat`, `TraitementDemandeDachat`), repository, service et controller (`/api/ddas`).
+  - Gestion des lignes, calcul du montant total, workflow complet.
+  - Front : formulaire dynamique, onglets “Demandes d achat” (suivi) et “A valider”.
+- **Onglets unifies** : la page *Mes demandes* et la page *Validation* affichent maintenant quatre onglets (FDM / Bon pour / RFDM / DDA) partageant la mise en forme (tableaux, cartes, dialogues de detail reutilisant `RequestDetailContent`).
+- **APIs front** : nouveaux clients `frontend/src/api/rfdm.ts` et `frontend/src/api/dda.ts` + evolution de `fdm.ts`/`bonpour.ts`.
+- **Tests Vitest** :
+  - `src/api/__tests__/fdm.test.ts`, `rfdm.test.ts`, `dda.test.ts` pour garantir les endpoints utilises.
+  - `src/components/requests/__tests__/FicheDescirptiveDeMissionForm.test.tsx` couvre la logique de formulaire.
+- README en ASCII detaille l ensemble des workflows, endpoints et scripts.
 
 ## Backend
 - Stack : Java 17, Spring Boot, Spring Security (JWT), Hibernate/JPA.
@@ -25,6 +33,8 @@ Plateforme web de gestion des demandes internes (FDM, bon pour, rapport financie
 - Comptes seeds (`DefaulUsersInitializer`) :
   - Admin : `admin@plateforme.com / admin123`
   - Utilisateur : `user@plateforme.com / puser123`
+- **Process codes requis** : pensez a creer dans `type_processus` les codes `FDM`, `BONPOUR`, `RFDM`, `DDA` pour que la recuperation des validateurs fonctionne correctement.
+- Build Maven : `./mvnw -q -DskipTests package`. (Sur un JDK < 21, Maven leve une erreur “release version 21 not supported”.)
 
 ## Frontend
 - Stack : React 18 + Vite + TypeScript + Tailwind/Shadcn UI.
@@ -47,4 +57,4 @@ Plateforme web de gestion des demandes internes (FDM, bon pour, rapport financie
 ## Notes complementaires
 - Le front consomme l API via `axiosInstance` (`http://localhost:9090/api`) avec token JWT depuis `localStorage`.
 - Les services backend notifient les validateurs par email via la configuration SMTP exposee dans `backend/src/main/resources/application.properties`.
-- Les formulaires utilisent massivement `react-hook-form`; si vous ajoutez de nouveaux inputs, pensez a propager les conversions numeriques avant d appeler les services (`MissionForm` illustre la logique).
+- Les formulaires utilisent `react-hook-form`. Les champs numeriques sont normalises avant l appel API (cf. `MissionForm`, `DemandeAchatForm`), pensez a conserver cette approche pour les prochains formulaires.

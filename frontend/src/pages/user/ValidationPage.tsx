@@ -1,16 +1,4 @@
-import React, { useState, useEffect } from "react";
-import {
-  CheckCircle,
-  XCircle,
-  Eye,
-  Search,
-  Filter,
-  MessageSquare,
-} from "lucide-react";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
-import { Textarea } from "../../components/ui/textarea";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +6,10 @@ import {
   CardHeader,
   CardTitle,
 } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -26,148 +18,519 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-import { Badge } from "../../components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { toast } from "sonner";
+import {
+  RequestDetailContent,
+  RequestDetailData,
+  RequestDetailType,
+} from "../../components/requests/RequestDetailContent";
 import { FicheDescriptiveMissionAPI } from "../../api/fdm";
+import { BonPourAPI } from "../../api/bonpour";
+import { RapportFinancierAPI } from "../../api/rfdm";
+import { DemandeAchatAPI } from "../../api/dda";
 import { FicheDescriptiveMission } from "../../types/Fdm";
+import { BonPour } from "../../types/BonPour";
+import { RapportFinancierDeMission } from "../../types/Rfdm";
+import { DemandeAchat } from "../../types/DemandeAchat";
+import { CheckCircle, Eye, Filter, MessageSquare, XCircle } from "lucide-react";
+import { TraitementDecision } from "../../types/Fdm";
 
-export function ValidationPage() {
-  const [requests, setRequests] = useState<FicheDescriptiveMission[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<FicheDescriptiveMission | null>(null);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectComment, setRejectComment] = useState("");
+type RequestTab = RequestDetailType;
+
+type RequestCollections = {
+  FDM: FicheDescriptiveMission[];
+  BONPOUR: BonPour[];
+  RFDM: RapportFinancierDeMission[];
+  DDA: DemandeAchat[];
+};
+
+type DecisionMode = "REJETER" | "A_CORRIGER";
+
+const tabMeta: Record<RequestTab, { title: string; description: string }> = {
+  FDM: {
+    title: "Fiches descriptives de mission",
+    description: "Demandes de mission en attente de votre approbation",
+  },
+  BONPOUR: {
+    title: "Bons pour",
+    description: "Demandes de bons pour nécessitant un avis",
+  },
+  RFDM: {
+    title: "Rapports financiers",
+    description: "Rapports financiers à valider ou commenter",
+  },
+  DDA: {
+    title: "Demandes d'achat",
+    description: "Demandes d'achat à approuver ou corriger",
+  },
+};
+
+const decisionLabel: Record<DecisionMode, string> = {
+  REJETER: "Rejeter",
+  A_CORRIGER: "Demander une correction",
+};
+
+const ValidationPage = () => {
+  const [activeTab, setActiveTab] = useState<RequestTab>("FDM");
   const [searchTerm, setSearchTerm] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [requests, setRequests] = useState<RequestCollections>({
+    FDM: [],
+    BONPOUR: [],
+    RFDM: [],
+    DDA: [],
+  });
+  const [detailState, setDetailState] = useState<{
+    open: boolean;
+    type: RequestTab;
+    data: RequestDetailData | null;
+  }>({ open: false, type: "FDM", data: null });
+  const [decisionState, setDecisionState] = useState<{
+    open: boolean;
+    type: RequestTab;
+    data: RequestDetailData | null;
+    mode: DecisionMode;
+  }>({ open: false, type: "FDM", data: null, mode: "REJETER" });
+  const [decisionComment, setDecisionComment] = useState("");
 
   useEffect(() => {
-    loadPendingValidations();
+    const loadPending = async () => {
+      setIsLoading(true);
+      try {
+        const [fdm, bonPour, rapports, ddas] = await Promise.all([
+          FicheDescriptiveMissionAPI.getPendingValidations(),
+          BonPourAPI.getPendingValidations(),
+          RapportFinancierAPI.getPendingValidations(),
+          DemandeAchatAPI.getPendingValidations(),
+        ]);
+        setRequests({
+          FDM: fdm,
+          BONPOUR: bonPour,
+          RFDM: rapports,
+          DDA: ddas,
+        });
+      } catch (error) {
+        console.error("Erreur chargement validations:", error);
+        toast.error("Erreur lors du chargement des demandes à valider");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadPending();
   }, []);
 
-  const loadPendingValidations = async () => {
-    setIsLoading(true);
+  const refreshTab = async () => {
     try {
-      const data = await FicheDescriptiveMissionAPI.getPendingValidations();
-      setRequests(data);
+      const loaders: Record<RequestTab, () => Promise<any[]>> = {
+        FDM: FicheDescriptiveMissionAPI.getPendingValidations,
+        BONPOUR: BonPourAPI.getPendingValidations,
+        RFDM: RapportFinancierAPI.getPendingValidations,
+        DDA: DemandeAchatAPI.getPendingValidations,
+      };
+      const data = await loaders[activeTab]();
+      setRequests((prev) => ({ ...prev, [activeTab]: data }));
     } catch (error) {
-      console.error("Error loading pending validations:", error);
-      toast.error("Erreur lors du chargement des demandes à valider");
-    } finally {
-      setIsLoading(false);
+      console.error("Erreur rafraîchissement validations:", error);
+      toast.error("Impossible de rafraîchir les demandes");
     }
   };
 
-  const filteredRequests = requests.filter((request) => {
-    const matchesSearch =
-      request.nomProjet.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.lieuMission.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.objectifMission.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${request.emetteur.lastName} ${request.emetteur.name}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-
-    return matchesSearch;
-  });
-
-  const handleViewDetails = (request: FicheDescriptiveMission) => {
-    setSelectedRequest(request);
-    setShowDetailsDialog(true);
-  };
-
-  const handleApprove = async (request: FicheDescriptiveMission) => {
+  const handleApprove = async (type: RequestTab, id: number) => {
+    const handlers: Record<RequestTab, (id: number, payload: any) => Promise<void>> = {
+      FDM: FicheDescriptiveMissionAPI.traiter,
+      BONPOUR: BonPourAPI.traiter,
+      RFDM: RapportFinancierAPI.traiter,
+      DDA: DemandeAchatAPI.traiter,
+    };
     try {
       setIsProcessing(true);
-      await FicheDescriptiveMissionAPI.traiter(request.id, {
-        decision: "VALIDER",
-        commentaire: "",
-      });
-      toast.success(`Demande "${request.nomProjet}" approuvée avec succès`);
-      setShowDetailsDialog(false);
-      await loadPendingValidations();
+      await handlers[type](id, { decision: "VALIDER" });
+      toast.success("Demande approuvée avec succès");
+      await refreshTab();
     } catch (error) {
-      console.error("Error approving request:", error);
-      toast.error("Erreur lors de l'approbation de la demande");
+      console.error("Erreur approbation:", error);
+      toast.error("Erreur lors de l'approbation");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleReject = (request: FicheDescriptiveMission) => {
-    setSelectedRequest(request);
-    setRejectComment("");
-    setShowDetailsDialog(false);
-    setShowRejectDialog(true);
-  };
-
-  const handleConfirmReject = async () => {
-    if (!selectedRequest) return;
-
-    if (!rejectComment.trim()) {
-      toast.error("Veuillez fournir un commentaire pour le rejet");
+  const handleDecision = async () => {
+    if (!decisionState.data) return;
+    if (!decisionComment.trim()) {
+      toast.error("Merci de saisir un commentaire");
       return;
     }
+    const handlers: Record<RequestTab, (id: number, payload: any) => Promise<void>> = {
+      FDM: FicheDescriptiveMissionAPI.traiter,
+      BONPOUR: BonPourAPI.traiter,
+      RFDM: RapportFinancierAPI.traiter,
+      DDA: DemandeAchatAPI.traiter,
+    };
 
     try {
       setIsProcessing(true);
-      await FicheDescriptiveMissionAPI.traiter(selectedRequest.id, {
-        decision: "REJETER",
-        commentaire: rejectComment,
+      await handlers[decisionState.type](decisionState.data.id, {
+        decision: decisionState.mode,
+        commentaire: decisionComment,
       });
-      toast.success(`Demande "${selectedRequest.nomProjet}" rejetée`);
-      setShowRejectDialog(false);
-      setRejectComment("");
-      await loadPendingValidations();
+      toast.success(
+        decisionState.mode === "REJETER"
+          ? "Demande rejetée"
+          : "Demande renvoyée pour correction"
+      );
+      setDecisionState({ ...decisionState, open: false, data: null });
+      setDecisionComment("");
+      await refreshTab();
     } catch (error) {
-      console.error("Error rejecting request:", error);
-      toast.error("Erreur lors du rejet de la demande");
+      console.error("Erreur décision:", error);
+      toast.error("Impossible de traiter la demande");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
+  const filteredRequests = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    const entries = requests[activeTab] as RequestDetailData[];
+
+    if (!term) return entries;
+
+    const matcher = (text?: string) =>
+      text?.toLowerCase().includes(term) ?? false;
+
+    return entries.filter((req) => {
+      switch (activeTab) {
+        case "FDM": {
+          const r = req as FicheDescriptiveMission;
+          return (
+            matcher(r.nomProjet) ||
+            matcher(r.lieuMission) ||
+            matcher(r.objectifMission) ||
+            matcher(`${r.emetteur.lastName} ${r.emetteur.name}`)
+          );
+        }
+        case "BONPOUR": {
+          const r = req as BonPour;
+          return matcher(r.beneficiaire) || matcher(r.motif);
+        }
+        case "RFDM": {
+          const r = req as RapportFinancierDeMission;
+          return matcher(r.objet) || matcher(`${r.emetteur.lastName} ${r.emetteur.name}`);
+        }
+        case "DDA": {
+          const r = req as DemandeAchat;
+          return (
+            matcher(r.destination) ||
+            matcher(r.fournisseur) ||
+            matcher(r.service) ||
+            matcher(r.client)
+          );
+        }
+        default:
+          return false;
+      }
     });
+  }, [activeTab, requests, searchTerm]);
+
+  const openDetailDialog = (type: RequestTab, data: RequestDetailData) =>
+    setDetailState({ open: true, type, data });
+
+  const openDecisionDialog = (type: RequestTab, data: RequestDetailData, mode: DecisionMode) => {
+    setDecisionState({ open: true, type, data, mode });
+    setDecisionComment("");
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  const renderCard = (type: RequestTab, item: RequestDetailData) => {
+    switch (type) {
+      case "FDM": {
+        const req = item as FicheDescriptiveMission;
+        return (
+          <Card key={`fdm-${req.id}`} className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <CardTitle>{req.nomProjet}</CardTitle>
+              <CardDescription>
+                {req.lieuMission} • {new Date(req.dateDepart).toLocaleDateString("fr-FR")} -{" "}
+                {new Date(req.dateProbableRetour).toLocaleDateString("fr-FR")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">{req.objectifMission}</p>
+              <div className="flex items-center gap-2 text-sm">
+                <Badge variant="secondary">
+                  Montant estimatif : {req.totalEstimatif.toLocaleString("fr-FR")} CFA
+                </Badge>
+                <span>
+                  Émetteur : {req.emetteur.lastName} {req.emetteur.name}
+                </span>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDetailDialog("FDM", req)}
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" /> Voir détails
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  onClick={() => handleApprove("FDM", req.id)}
+                  disabled={isProcessing}
+                >
+                  <CheckCircle className="h-4 w-4" /> Approuver
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => openDecisionDialog("FDM", req, "REJETER")}
+                  className="flex items-center gap-2"
+                >
+                  <XCircle className="h-4 w-4" /> Rejeter
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDecisionDialog("FDM", req, "A_CORRIGER")}
+                  className="flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" /> À corriger
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+      case "BONPOUR": {
+        const req = item as BonPour;
+        return (
+          <Card key={`bonpour-${req.id}`} className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <CardTitle>{req.beneficiaire}</CardTitle>
+              <CardDescription>{req.motif}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Badge variant="secondary">
+                Montant : {req.montantTotal.toLocaleString("fr-FR")} CFA
+              </Badge>
+              <p className="text-sm text-muted-foreground">
+                Lignes : {req.lignes.length} • Émetteur : {req.emetteur.lastName}{" "}
+                {req.emetteur.name}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDetailDialog("BONPOUR", req)}
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" /> Voir détails
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  onClick={() => handleApprove("BONPOUR", req.id)}
+                  disabled={isProcessing}
+                >
+                  <CheckCircle className="h-4 w-4" /> Approuver
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => openDecisionDialog("BONPOUR", req, "REJETER")}
+                  className="flex items-center gap-2"
+                >
+                  <XCircle className="h-4 w-4" /> Rejeter
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDecisionDialog("BONPOUR", req, "A_CORRIGER")}
+                  className="flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" /> À corriger
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+      case "RFDM": {
+        const req = item as RapportFinancierDeMission;
+        return (
+          <Card key={`rfdm-${req.id}`} className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <CardTitle>{req.objet}</CardTitle>
+              <CardDescription>
+                {new Date(req.dateDebut).toLocaleDateString("fr-FR")} -{" "}
+                {new Date(req.dateFin).toLocaleDateString("fr-FR")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Badge variant="secondary">
+                Total dépenses : {req.totalDepenses.toLocaleString("fr-FR")} CFA
+              </Badge>
+              <p className="text-sm text-muted-foreground">
+                Émetteur : {req.emetteur.lastName} {req.emetteur.name}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDetailDialog("RFDM", req)}
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" /> Voir détails
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  onClick={() => handleApprove("RFDM", req.id)}
+                  disabled={isProcessing}
+                >
+                  <CheckCircle className="h-4 w-4" /> Approuver
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => openDecisionDialog("RFDM", req, "REJETER")}
+                  className="flex items-center gap-2"
+                >
+                  <XCircle className="h-4 w-4" /> Rejeter
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDecisionDialog("RFDM", req, "A_CORRIGER")}
+                  className="flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" /> À corriger
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+      case "DDA": {
+        const req = item as DemandeAchat;
+        return (
+          <Card key={`dda-${req.id}`} className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <CardTitle>{req.destination}</CardTitle>
+              <CardDescription>
+                Fournisseur : {req.fournisseur} • Service : {req.service}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Badge variant="secondary">
+                Montant total : {req.prixTotal.toLocaleString("fr-FR")} €
+              </Badge>
+              <p className="text-sm text-muted-foreground">
+                Émetteur : {req.emetteur.lastName} {req.emetteur.name}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDetailDialog("DDA", req)}
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" /> Voir détails
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  onClick={() => handleApprove("DDA", req.id)}
+                  disabled={isProcessing}
+                >
+                  <CheckCircle className="h-4 w-4" /> Approuver
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => openDecisionDialog("DDA", req, "REJETER")}
+                  className="flex items-center gap-2"
+                >
+                  <XCircle className="h-4 w-4" /> Rejeter
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDecisionDialog("DDA", req, "A_CORRIGER")}
+                  className="flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" /> À corriger
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  const renderTabContent = (type: RequestTab) => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center min-h-[200px]">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+        </div>
+      );
+    }
+
+    if (filteredRequests.length === 0 && activeTab === type) {
+      return (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+            <Filter className="h-8 w-8 mb-3" />
+            <p>
+              {searchTerm
+                ? "Aucune demande ne correspond à la recherche"
+                : "Aucune demande à traiter"}
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (activeTab === type) {
+      return (
+        <div className="space-y-4 pb-6">
+          {filteredRequests.map((request) => renderCard(type, request))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex-shrink-0 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Validation des demandes
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="flex-shrink-0 mb-6 space-y-2">
+        <h1 className="text-2xl font-bold text-gray-900">Validation des demandes</h1>
+        <p className="text-sm text-gray-500">
           Consultez et traitez les demandes en attente de validation
         </p>
       </div>
 
       <Card className="flex-shrink-0 mb-6">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <Label htmlFor="search" className="sr-only">
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label htmlFor="search" className="sr-only">
                 Rechercher
-              </Label>
+              </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   id="search"
-                  placeholder="Rechercher par projet, lieu, objectif ou demandeur..."
+                  placeholder="Rechercher par nom, lieu, objectif ou demandeur..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-3"
                 />
               </div>
             </div>
@@ -176,303 +539,71 @@ export function ValidationPage() {
       </Card>
 
       <div className="flex-1 overflow-y-auto pr-2">
-        {filteredRequests.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Filter className="h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-gray-500 text-center">
-                {searchTerm ? "Aucune demande trouvée avec les critères de recherche" : "Aucune demande en attente de validation"}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4 pb-6">
-            {filteredRequests.map((request) => (
-              <Card
-                key={request.id}
-                className="hover:shadow-md transition-shadow"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge className="bg-blue-100 text-blue-800">FDM</Badge>
-                        <Badge variant="outline">
-                          {request.typeProcessus?.libelle || "FDM"}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-lg">{request.nomProjet}</CardTitle>
-                      <CardDescription className="mt-1">
-                        Par {request.emetteur.lastName}{" "}
-                        {request.emetteur.name} •{" "}
-                        {formatDate(request.dateDepart)}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-600 mb-2">
-                      <span className="font-medium">Lieu:</span> {request.lieuMission}
-                    </p>
-                    <p className="text-sm text-gray-600 mb-2">
-                      <span className="font-medium">Période:</span>{" "}
-                      {formatDate(request.dateDepart)} -{" "}
-                      {formatDate(request.dateProbableRetour)} ({request.dureeMission} jours)
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Budget estimatif:</span>{" "}
-                      {request.totalEstimatif.toLocaleString("fr-FR")} CFA
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewDetails(request)}
-                      className="flex items-center gap-2"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Voir détails
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => handleApprove(request)}
-                      disabled={isProcessing}
-                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      Approuver
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleReject(request)}
-                      disabled={isProcessing}
-                      className="flex items-center gap-2"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      Rejeter
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <Tabs
+          defaultValue="FDM"
+          value={activeTab}
+          onValueChange={(value) => {
+            setActiveTab(value as RequestTab);
+            setSearchTerm("");
+          }}
+          className="space-y-4"
+        >
+          <TabsList>
+            <TabsTrigger value="FDM">FDM</TabsTrigger>
+            <TabsTrigger value="BONPOUR">Bon pour</TabsTrigger>
+            <TabsTrigger value="RFDM">Rapports</TabsTrigger>
+            <TabsTrigger value="DDA">Demandes d'achat</TabsTrigger>
+          </TabsList>
+
+          {(Object.keys(tabMeta) as RequestTab[]).map((tab) => (
+            <TabsContent value={tab} key={tab} className="space-y-3">
+              <h2 className="text-xl font-semibold">{tabMeta[tab].title}</h2>
+              <p className="text-sm text-muted-foreground">{tabMeta[tab].description}</p>
+              {renderTabContent(tab)}
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
 
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+      <Dialog open={detailState.open} onOpenChange={(open) => setDetailState((prev) => ({ ...prev, open }))}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Détails de la Fiche Descriptive de Mission</DialogTitle>
-            <DialogDescription>
-              Informations complètes sur la demande
-            </DialogDescription>
+            <DialogTitle>Détails de la demande</DialogTitle>
           </DialogHeader>
-
-          {selectedRequest && (
-            <div className="space-y-6">
-              <div className="border-b pb-4">
-                <h3 className="font-semibold mb-3">Informations générales</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Nom du projet
-                    </p>
-                    <p className="font-medium">{selectedRequest.nomProjet}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Lieu de mission
-                    </p>
-                    <p className="font-medium">{selectedRequest.lieuMission}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Date de départ
-                    </p>
-                    <p>{formatDate(selectedRequest.dateDepart)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Date probable de retour
-                    </p>
-                    <p>{formatDate(selectedRequest.dateProbableRetour)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Durée de mission
-                    </p>
-                    <p>{selectedRequest.dureeMission} jour(s)</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">Émetteur</p>
-                    <p>
-                      {selectedRequest.emetteur.lastName}{" "}
-                      {selectedRequest.emetteur.name}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-b pb-4">
-                <h3 className="font-semibold mb-3">Objectif de la mission</h3>
-                <p className="text-sm">{selectedRequest.objectifMission}</p>
-              </div>
-
-              <div className="border-b pb-4">
-                <h3 className="font-semibold mb-3">Estimations financières</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Per diem</span>
-                    <span className="font-medium">
-                      {selectedRequest.perdieme.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Transport</span>
-                    <span className="font-medium">
-                      {selectedRequest.transport.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Bon essence</span>
-                    <span className="font-medium">
-                      {selectedRequest.bonEssence.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Péage</span>
-                    <span className="font-medium">
-                      {selectedRequest.peage.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Laisser-passer</span>
-                    <span className="font-medium">
-                      {selectedRequest.laisserPasser.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Hôtel</span>
-                    <span className="font-medium">
-                      {selectedRequest.hotel.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Divers</span>
-                    <span className="font-medium">
-                      {selectedRequest.divers.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-blue-100 rounded">
-                    <span className="font-semibold">Total estimatif</span>
-                    <span className="font-bold text-blue-700">
-                      {selectedRequest.totalEstimatif.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          {detailState.data && (
+            <RequestDetailContent type={detailState.type} data={detailState.data} />
           )}
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowDetailsDialog(false)}
-            >
-              Fermer
-            </Button>
-            {selectedRequest && (
-              <>
-                <Button
-                  variant="default"
-                  onClick={() =>
-                    selectedRequest && handleApprove(selectedRequest)
-                  }
-                  disabled={isProcessing}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approuver
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() =>
-                    selectedRequest && handleReject(selectedRequest)
-                  }
-                  disabled={isProcessing}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Rejeter
-                </Button>
-              </>
-            )}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+      <Dialog
+        open={decisionState.open}
+        onOpenChange={(open) => setDecisionState((prev) => ({ ...prev, open }))}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rejeter la demande</DialogTitle>
+            <DialogTitle>{decisionLabel[decisionState.mode]}</DialogTitle>
             <DialogDescription>
-              Veuillez fournir un commentaire expliquant le motif du rejet
+              Merci de préciser un commentaire pour {decisionLabel[decisionState.mode].toLowerCase()}.
             </DialogDescription>
           </DialogHeader>
-
-          {selectedRequest && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium">Demande</Label>
-                <p className="text-sm mt-1 font-semibold">
-                  {selectedRequest.nomProjet}
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="rejectComment">
-                  Commentaire <span className="text-red-500">*</span>
-                </Label>
-                <Textarea
-                  id="rejectComment"
-                  placeholder="Expliquez pourquoi cette demande est rejetée ou ce qui doit être corrigé..."
-                  rows={4}
-                  value={rejectComment}
-                  onChange={(e) => setRejectComment(e.target.value)}
-                  className="mt-1"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Ce commentaire sera visible par le demandeur
-                </p>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowRejectDialog(false);
-                setRejectComment("");
-              }}
-              disabled={isProcessing}
-            >
+          <Textarea
+            value={decisionComment}
+            onChange={(e) => setDecisionComment(e.target.value)}
+            placeholder="Vos remarques..."
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDecisionState({ ...decisionState, open: false })}>
               Annuler
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmReject}
-              disabled={isProcessing || !rejectComment.trim()}
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Confirmer le rejet
+            <Button onClick={handleDecision} disabled={isProcessing}>
+              Confirmer
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-}
+};
+
+export { ValidationPage };

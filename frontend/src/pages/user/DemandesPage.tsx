@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FicheDescriptiveMissionAPI } from "../../api/fdm";
-import { FicheDescriptiveMission, TraitementDecision } from "../../types/Fdm";
-import { Button } from "../../components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -11,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
+import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import {
   Dialog,
@@ -20,67 +19,167 @@ import {
 } from "../../components/ui/dialog";
 import { Plus, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { FicheDescriptiveMissionAPI } from "../../api/fdm";
+import { BonPourAPI } from "../../api/bonpour";
+import { RapportFinancierAPI } from "../../api/rfdm";
+import { DemandeAchatAPI } from "../../api/dda";
+import { FicheDescriptiveMission, TraitementDecision } from "../../types/Fdm";
+import { BonPour } from "../../types/BonPour";
+import { RapportFinancierDeMission } from "../../types/Rfdm";
+import { DemandeAchat } from "../../types/DemandeAchat";
+import {
+  RequestDetailContent,
+  RequestDetailData,
+  RequestDetailType,
+} from "../../components/requests/RequestDetailContent";
 
-type StatutFDM = TraitementDecision | "EN_ATTENTE";
+type RequestTab = RequestDetailType;
+
+const STATUT_CONFIG: Record<
+  "EN_ATTENTE" | TraitementDecision,
+  { variant: "secondary" | "outline" | "destructive" | "default"; label: string }
+> = {
+  EN_ATTENTE: { variant: "secondary", label: "En attente" },
+  VALIDER: { variant: "outline", label: "Validée" },
+  REJETER: { variant: "destructive", label: "Rejetée" },
+  A_CORRIGER: { variant: "default", label: "À corriger" },
+};
+
+const formatDecisionBadge = (decision?: TraitementDecision | null) => {
+  const key = decision ?? "EN_ATTENTE";
+  const config = STATUT_CONFIG[key];
+  return <Badge variant={config.variant}>{config.label}</Badge>;
+};
+
+const formatCurrency = (value: number, currency = "CFA") =>
+  `${(value ?? 0).toLocaleString("fr-FR")} ${currency}`;
 
 export const FDMPage = () => {
-  const [fdms, setFdms] = useState<FicheDescriptiveMission[]>([]);
-  const [selectedFDM, setSelectedFDM] =
-    useState<FicheDescriptiveMission | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [fdms, setFdms] = useState<FicheDescriptiveMission[]>([]);
+  const [bonpours, setBonpours] = useState<BonPour[]>([]);
+  const [rapports, setRapports] = useState<RapportFinancierDeMission[]>([]);
+  const [ddas, setDdas] = useState<DemandeAchat[]>([]);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailType, setDetailType] = useState<RequestDetailType>("FDM");
+  const [detailData, setDetailData] = useState<RequestDetailData | null>(null);
 
   useEffect(() => {
-    loadFDMs();
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [fdmData, bonPourData, rapportData, ddaData] = await Promise.all([
+          FicheDescriptiveMissionAPI.getMyRequests(),
+          BonPourAPI.getMyRequests(),
+          RapportFinancierAPI.getMyRequests(),
+          DemandeAchatAPI.getMyRequests(),
+        ]);
+        setFdms(fdmData);
+        setBonpours(bonPourData);
+        setRapports(rapportData);
+        setDdas(ddaData);
+      } catch (error) {
+        console.error("Erreur chargement demandes:", error);
+        toast.error("Erreur lors du chargement des demandes");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
-  const loadFDMs = async () => {
-    setIsLoading(true);
-    try {
-      const data = await FicheDescriptiveMissionAPI.getMyRequests();
-      setFdms(data);
-    } catch (error) {
-      toast.error("Erreur lors du chargement des FDM");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const statutConfig: Record<
-    StatutFDM,
-    { variant: "default" | "secondary" | "destructive" | "outline"; label: string }
-  > = {
-    EN_ATTENTE: { variant: "secondary", label: "En attente" },
-    VALIDER: { variant: "outline", label: "Validée" },
-    REJETER: { variant: "destructive", label: "Rejetée" },
-    A_CORRIGER: { variant: "default", label: "À corriger" },
-  };
-
-  const resolveStatut = (fdm: FicheDescriptiveMission): StatutFDM => {
-    if (!fdm.traitementPrecedent) {
-      return "EN_ATTENTE";
-    }
-    const decision = fdm.traitementPrecedent.decision;
-    return decision ?? "EN_ATTENTE";
-  };
-
-  const getStatutBadge = (statut: StatutFDM) => {
-    const config = statutConfig[statut] ?? statutConfig["EN_ATTENTE"];
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
-  const getReglementBadge = (regler: boolean) => {
-    return (
-      <Badge variant={regler ? "outline" : "secondary"}>
-        {regler ? "Réglée" : "Non réglée"}
-      </Badge>
-    );
-  };
-
-  const handleViewDetails = (fdm: FicheDescriptiveMission) => {
-    setSelectedFDM(fdm);
+  const openDetails = (type: RequestTab, data: RequestDetailData) => {
+    setDetailType(type);
+    setDetailData(data);
     setIsDetailOpen(true);
   };
+
+  const renderFdmRows = () =>
+    fdms.map((fdm) => (
+      <TableRow key={fdm.id}>
+        <TableCell className="font-medium">{fdm.nomProjet}</TableCell>
+        <TableCell>{fdm.lieuMission}</TableCell>
+        <TableCell>{new Date(fdm.dateDepart).toLocaleDateString("fr-FR")}</TableCell>
+        <TableCell>
+          {new Date(fdm.dateProbableRetour).toLocaleDateString("fr-FR")}
+        </TableCell>
+        <TableCell>{fdm.dureeMission} jour(s)</TableCell>
+        <TableCell className="font-semibold">
+          {formatCurrency(fdm.totalEstimatif)}
+        </TableCell>
+        <TableCell>{formatDecisionBadge(fdm.traitementPrecedent?.decision)}</TableCell>
+        <TableCell>
+          <Badge variant={fdm.regler ? "outline" : "secondary"}>
+            {fdm.regler ? "Réglée" : "Non réglée"}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-right">
+          <Button variant="ghost" size="icon" onClick={() => openDetails("FDM", fdm)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+        </TableCell>
+      </TableRow>
+    ));
+
+  const renderBonPourRows = () =>
+    bonpours.map((bonpour) => (
+      <TableRow key={bonpour.id}>
+        <TableCell className="font-medium">{bonpour.beneficiaire}</TableCell>
+        <TableCell>{bonpour.motif}</TableCell>
+        <TableCell className="font-semibold">
+          {formatCurrency(bonpour.montantTotal)}
+        </TableCell>
+        <TableCell>{formatDecisionBadge(bonpour.traitementPrecedent?.decision)}</TableCell>
+        <TableCell>
+          <Badge variant={bonpour.regler ? "outline" : "secondary"}>
+            {bonpour.regler ? "Réglé" : "Non réglé"}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-right">
+          <Button variant="ghost" size="icon" onClick={() => openDetails("BONPOUR", bonpour)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+        </TableCell>
+      </TableRow>
+    ));
+
+  const renderRapportRows = () =>
+    rapports.map((rapport) => (
+      <TableRow key={rapport.id}>
+        <TableCell className="font-medium">{rapport.objet}</TableCell>
+        <TableCell>{new Date(rapport.dateDebut).toLocaleDateString("fr-FR")}</TableCell>
+        <TableCell>{new Date(rapport.dateFin).toLocaleDateString("fr-FR")}</TableCell>
+        <TableCell>{formatCurrency(rapport.totalDepenses)}</TableCell>
+        <TableCell>
+          {formatCurrency(rapport.montantDepense ?? rapport.totalDepenses)}
+        </TableCell>
+        <TableCell>{formatDecisionBadge(rapport.traitementPrecedent?.decision)}</TableCell>
+        <TableCell className="text-right">
+          <Button variant="ghost" size="icon" onClick={() => openDetails("RFDM", rapport)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+        </TableCell>
+      </TableRow>
+    ));
+
+  const renderDdaRows = () =>
+    ddas.map((demande) => (
+      <TableRow key={demande.id}>
+        <TableCell className="font-medium">{demande.destination}</TableCell>
+        <TableCell>{demande.fournisseur}</TableCell>
+        <TableCell>{demande.service}</TableCell>
+        <TableCell>{demande.client}</TableCell>
+        <TableCell>{formatCurrency(demande.prixTotal, "€")}</TableCell>
+        <TableCell>{formatDecisionBadge(demande.traitementPrecedent?.decision)}</TableCell>
+        <TableCell className="text-right">
+          <Button variant="ghost" size="icon" onClick={() => openDetails("DDA", demande)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+        </TableCell>
+      </TableRow>
+    ));
+
+
 
   if (isLoading) {
     return (
@@ -90,10 +189,39 @@ export const FDMPage = () => {
     );
   }
 
+  const renderTableWrapper = (
+    rows: React.ReactNode,
+    headers: string[],
+    emptyLabel: string
+  ) => (
+    <div className="bg-white rounded-lg border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {headers.map((header) => (
+              <TableHead key={header}>{header}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows && Array.isArray(rows) && (rows as React.ReactNode[]).length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={headers.length} className="text-center py-6 text-muted-foreground">
+                {emptyLabel}
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1>Mes Fiches Descriptives de Mission</h1>
+        <h1>Mes Demandes</h1>
         <Link to="/user/demandes/new">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
@@ -102,238 +230,64 @@ export const FDMPage = () => {
         </Link>
       </div>
 
-      <div className="bg-white rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Projet</TableHead>
-              <TableHead>Lieu</TableHead>
-              <TableHead>Date départ</TableHead>
-              <TableHead>Date retour</TableHead>
-              <TableHead>Durée</TableHead>
-              <TableHead>Total estimatif</TableHead>
-              <TableHead>Statut</TableHead>
-              <TableHead>Règlement</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {fdms.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={9}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  Aucune FDM trouvée
-                </TableCell>
-              </TableRow>
-            ) : (
-              fdms.map((fdm) => (
-                <TableRow key={fdm.id}>
-                  <TableCell className="font-medium">{fdm.nomProjet}</TableCell>
-                  <TableCell>{fdm.lieuMission}</TableCell>
-                  <TableCell>
-                    {new Date(fdm.dateDepart).toLocaleDateString("fr-FR")}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(fdm.dateProbableRetour).toLocaleDateString(
-                      "fr-FR"
-                    )}
-                  </TableCell>
-                  <TableCell>{fdm.dureeMission} jour(s)</TableCell>
-                  <TableCell className="font-semibold">
-                    {fdm.totalEstimatif.toLocaleString("fr-FR")} CFA
-                  </TableCell>
-                  <TableCell>
-                    {getStatutBadge(resolveStatut(fdm))}
-                  </TableCell>
-                  <TableCell>{getReglementBadge(fdm.regler)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleViewDetails(fdm)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <Tabs defaultValue="FDM" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="FDM">FDM</TabsTrigger>
+          <TabsTrigger value="BONPOUR">Bon pour</TabsTrigger>
+          <TabsTrigger value="RFDM">Rapports</TabsTrigger>
+          <TabsTrigger value="DDA">Demandes d'achat</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="FDM">
+          {renderTableWrapper(
+            renderFdmRows(),
+            [
+              "Projet",
+              "Lieu",
+              "Date départ",
+              "Date retour",
+              "Durée",
+              "Total estimatif",
+              "Statut",
+              "Règlement",
+              "Actions",
+            ],
+            "Aucune FDM trouvée"
+          )}
+        </TabsContent>
+
+        <TabsContent value="BONPOUR">
+          {renderTableWrapper(
+            renderBonPourRows(),
+            ["Bénéficiaire", "Motif", "Montant", "Statut", "Règlement", "Actions"],
+            "Aucun bon pour trouvé"
+          )}
+        </TabsContent>
+
+        <TabsContent value="RFDM">
+          {renderTableWrapper(
+            renderRapportRows(),
+            ["Objet", "Date début", "Date fin", "Total dépenses", "Montant dépensé", "Statut", "Actions"],
+            "Aucun rapport financier trouvé"
+          )}
+        </TabsContent>
+
+        <TabsContent value="DDA">
+          {renderTableWrapper(
+            renderDdaRows(),
+            ["Destination", "Fournisseur", "Service", "Client", "Montant total", "Statut", "Actions"],
+            "Aucune demande d'achat trouvée"
+          )}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              Détails de la Fiche Descriptive de Mission
-            </DialogTitle>
+            <DialogTitle>Détails de la demande</DialogTitle>
           </DialogHeader>
-          {selectedFDM && (
-            <div className="space-y-6">
-              {/* Informations générales */}
-              <div className="border-b pb-4">
-                <h3 className="font-semibold mb-3">Informations générales</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Nom du projet
-                    </p>
-                    <p className="font-medium">{selectedFDM.nomProjet}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Lieu de mission
-                    </p>
-                    <p className="font-medium">{selectedFDM.lieuMission}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Date de départ
-                    </p>
-                    <p>
-                      {new Date(selectedFDM.dateDepart).toLocaleDateString(
-                        "fr-FR"
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Date probable de retour
-                    </p>
-                    <p>
-                      {new Date(
-                        selectedFDM.dateProbableRetour
-                      ).toLocaleDateString("fr-FR")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">
-                      Durée de mission
-                    </p>
-                    <p>{selectedFDM.dureeMission} jour(s)</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">Émetteur</p>
-                    <p>
-                      {selectedFDM.emetteur.lastName}{" "}
-                      {selectedFDM.emetteur.name}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Objectif */}
-              <div className="border-b pb-4">
-                <h3 className="font-semibold mb-3">Objectif de la mission</h3>
-                <p className="text-sm">{selectedFDM.objectifMission}</p>
-              </div>
-
-              {/* Estimations financières */}
-              <div className="border-b pb-4">
-                <h3 className="font-semibold mb-3">Estimations financières</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Per diem</span>
-                    <span className="font-medium">
-                      {selectedFDM.perdieme.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Transport</span>
-                    <span className="font-medium">
-                      {selectedFDM.transport.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Bon essence</span>
-                    <span className="font-medium">
-                      {selectedFDM.bonEssence.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Péage</span>
-                    <span className="font-medium">
-                      {selectedFDM.peage.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Laisser-passer</span>
-                    <span className="font-medium">
-                      {selectedFDM.laisserPasser.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Hôtel</span>
-                    <span className="font-medium">
-                      {selectedFDM.hotel.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <span className="text-sm">Divers</span>
-                    <span className="font-medium">
-                      {selectedFDM.divers.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-blue-100 rounded">
-                    <span className="font-semibold">Total estimatif</span>
-                    <span className="font-bold text-blue-700">
-                      {selectedFDM.totalEstimatif.toLocaleString("fr-FR")} CFA
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Statut et traitement */}
-              <div>
-                <h3 className="font-semibold mb-3">Statut et règlement</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-muted-foreground text-sm">Statut</p>
-                    {getStatutBadge(resolveStatut(selectedFDM))}
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-sm">Règlement</p>
-                    {getReglementBadge(selectedFDM.regler)}
-                  </div>
-                  {selectedFDM.dateReglement && (
-                    <div>
-                      <p className="text-muted-foreground text-sm">
-                        Date de règlement
-                      </p>
-                      <p>
-                        {new Date(selectedFDM.dateReglement).toLocaleDateString(
-                          "fr-FR"
-                        )}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Commentaire du traitement */}
-                {selectedFDM.traitementPrecedent?.commentaire && (
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-muted-foreground text-sm mb-1">
-                      Commentaire du validateur
-                    </p>
-                    <p className="text-sm">
-                      {selectedFDM.traitementPrecedent.commentaire}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Traité par:{" "}
-                      {selectedFDM.traitementPrecedent.traiteur.lastName}{" "}
-                      {selectedFDM.traitementPrecedent.traiteur.name}
-                      {" - "}
-                      {new Date(
-                        selectedFDM.traitementPrecedent.dateTraitement
-                      ).toLocaleDateString("fr-FR")}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+          {detailData && (
+            <RequestDetailContent type={detailType} data={detailData} />
           )}
         </DialogContent>
       </Dialog>

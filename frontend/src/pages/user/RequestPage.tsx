@@ -24,8 +24,12 @@ import { DemandeAchatForm } from "../../components/requests/DemandeAchat";
 import { BonPourForm } from "../../components/requests/BonPour";
 import { FicheDescriptiveMissionAPI } from "../../api/fdm";
 import { BonPourAPI } from "../../api/bonpour";
+import { RapportFinancierAPI } from "../../api/rfdm";
+import { DemandeAchatAPI } from "../../api/dda";
 import { CreateFDMRequest } from "../../types/Fdm";
 import { CreateBonPourRequest } from "../../types/BonPour";
+import { CreateRapportFinancierRequest } from "../../types/Rfdm";
+import { CreateDemandeAchatRequest } from "../../types/DemandeAchat";
 import { RequestType } from "../../types/request";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -108,20 +112,42 @@ export function RequestPage() {
 
   const handleSaveRFDM = async (formData: any): Promise<void> => {
     try {
+      if (!user) {
+        toast.error("Utilisateur non connecté. Veuillez vous reconnecter.");
+        return;
+      }
       setIsLoading(true);
 
-      // TODO: Créer le service RapportFinancierAPI similaire à FicheDescriptiveMissionAPI
-      // const result = await RapportFinancierAPI.create(formData);
+      const payload: CreateRapportFinancierRequest = {
+        objet: formData.objet,
+        dateDebut: formData.dateDebut,
+        dateFin: formData.dateFin,
+        hotelDejeuner: Number(formData.hotelDejeuner) || 0,
+        telephone: Number(formData.telephone) || 0,
+        transport: Number(formData.transport) || 0,
+        indemnites: Number(formData.indemnites) || 0,
+        laisserPasser: Number(formData.laisserPasser) || 0,
+        coutDivers: Number(formData.coutDivers) || 0,
+        montantRecu: Number(formData.montantRecu) || 0,
+        montantDepense: Number(formData.montantDepense) || 0,
+        commentaire: formData.commentaire,
+      };
 
-      // Pour l'instant, simulation
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("RFDM à créer:", formData);
+      const result = await RapportFinancierAPI.create(payload);
 
-      toast.success("Rapport financier créé avec succès");
+      toast.success("Rapport financier créé avec succès", {
+        description: `Référence: ${result.reference}`,
+      });
       navigate("/user/demandes");
     } catch (error: any) {
       console.error("❌ Erreur RFDM:", error);
-      toast.error("Erreur lors de l'enregistrement du rapport financier");
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Erreur lors de l'enregistrement du rapport financier";
+      toast.error("Erreur lors de l'enregistrement du rapport financier", {
+        description: errorMessage,
+      });
       throw error;
     } finally {
       setIsLoading(false);
@@ -130,19 +156,42 @@ export function RequestPage() {
 
   const handleSaveDemandeAchat = async (formData: any): Promise<void> => {
     try {
+      if (!user) {
+        toast.error("Utilisateur non connecté. Veuillez vous reconnecter.");
+        return;
+      }
       setIsLoading(true);
 
-      // TODO: Créer le service DemandeAchatAPI
-      // const result = await DemandeAchatAPI.create(formData);
+      const payload: CreateDemandeAchatRequest = {
+        destination: formData.destination,
+        fournisseur: formData.fournisseur,
+        service: formData.service,
+        client: formData.client,
+        montantProjet: Number(formData.montantProjet) || 0,
+        commentaire: formData.commentaire,
+        lignes: formData.lignes.map((ligne: any) => ({
+          designation: ligne.designation,
+          ligneReference: ligne.reference,
+          prixUnitaire: Number(ligne.prixUnitaire) || 0,
+          quantite: Number(ligne.quantite) || 0,
+        })),
+      };
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("Demande d'achat à créer:", formData);
+      const result = await DemandeAchatAPI.create(payload);
 
-      toast.success("Demande d'achat créée avec succès");
+      toast.success("Demande d'achat créée avec succès", {
+        description: `Référence: ${result.reference}`,
+      });
       navigate("/user/demandes");
     } catch (error: any) {
       console.error("❌ Erreur demande d'achat:", error);
-      toast.error("Erreur lors de l'enregistrement de la demande d'achat");
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Erreur lors de l'enregistrement de la demande d'achat";
+      toast.error("Erreur lors de l'enregistrement de la demande d'achat", {
+        description: errorMessage,
+      });
       throw error;
     } finally {
       setIsLoading(false);
