@@ -10,7 +10,7 @@ import tg.idstechnologie.plateforme.interfaces.idsdemande.ValidateurInterface;
 import tg.idstechnologie.plateforme.models.idsdemande.Validateur;
 import tg.idstechnologie.plateforme.response.ResponseConstant;
 import tg.idstechnologie.plateforme.response.ResponseModel;
-
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -90,4 +90,10 @@ public class ValidateurService  implements ValidateurInterface {
         }
         return new ResponseConstant().noContent("Aucune correspondance trouvé");
     }
+
+    @Override
+public ResponseModel getValidateursByTypeProcessus(Long typeProcessusId) {
+    List<Validateur> validateurs = validateurDao.findByTypeProcessusIdAndDeleteFalse(typeProcessusId);
+    return new ResponseConstant().ok(validateurs);
+}
 }

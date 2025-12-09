@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import axiosInstance from "../../api/axios";
 import {
   Card,
   CardContent,
@@ -25,13 +26,20 @@ import { BonPourForm } from "../../components/requests/BonPour";
 import { FicheDescriptiveMissionAPI } from "../../api/fdm";
 import { BonPourAPI } from "../../api/bonpour";
 import { RapportFinancierAPI } from "../../api/rfdm";
-import { DemandeAchatAPI } from "../../api/dda";
+import { DemandeAchatAPI } from "../../api/demandeAchat";
 import { CreateFDMRequest } from "../../types/Fdm";
 import { CreateBonPourRequest } from "../../types/BonPour";
 import { CreateRapportFinancierRequest } from "../../types/Rfdm";
 import { CreateDemandeAchatRequest } from "../../types/DemandeAchat";
 import { RequestType } from "../../types/request";
 import { useAuth } from "../../hooks/useAuth";
+import { ValidationErrors } from "../../components/forms/ValidationErrorDisplay";
+import {
+  validateFDMForm,
+  validateRFDMForm,
+  validateDDAForm,
+  validateBonPourForm,
+} from "../../utils/formValidation";
 
 type RequestTypeUI = RequestType | "DDA" | "FORMATION" | "MISSION" | "AUTRE";
 
@@ -39,10 +47,72 @@ export function RequestPage() {
   const navigate = useNavigate();
   const [selectedType, setSelectedType] = useState<RequestTypeUI | "">("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<
+    Array<{ field: string; message: string }>
+  >([]);
 
   // Récupérer l'utilisateur connecté depuis le contexte d'auth
   // Utilise le hook `useAuth` fourni dans `src/hooks/useAuth.ts`
   const { user, isLoading: authLoading } = useAuth();
+
+  /**
+   * Fonction générale pour uploader les fichiers après la création d'une demande
+   * @param demandetype - Type de demande (FDM, RFDM, DDA)
+   * @param reference - Référence de la demande créée
+   * @param files - Fichiers à uploader
+   */
+  const uploadFilesForDemande = async (
+    demandeType: "FDM" | "RFDM" | "DDA" | "BONPOUR",
+    reference: string,
+    files: File[]
+  ): Promise<void> => {
+    if (!files || files.length === 0) {
+      console.log("✅ Pas de fichiers à uploader");
+      return;
+    }
+
+    setIsUploadingFiles(true);
+    try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append("files", file));
+
+      // Mapper le type de demande à l'endpoint API correct
+      const typeMapping: Record<"FDM" | "RFDM" | "DDA" | "BONPOUR", string> = {
+        FDM: "fdms",
+        RFDM: "rapportFinanciers",
+        DDA: "ddas",
+        BONPOUR: "bonPours",
+      };
+
+      const endpoint = typeMapping[demandeType];
+      const uploadUrl = `/${endpoint}/${reference}/pieces-jointes`;
+
+      console.log(`📤 Uploading ${files.length} fichiers vers ${uploadUrl}`);
+
+      // Let axios set the Content-Type (it will include the multipart boundary)
+      await axiosInstance.post(uploadUrl, formData);
+
+      console.log("✅ Fichiers uploadés avec succès");
+      toast.success("Fichiers uploadés avec succès", {
+        description: `${files.length} fichier(s) ajouté(s) à votre demande`,
+      });
+    } catch (error: any) {
+      console.error("❌ Erreur lors de l'upload des fichiers:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Erreur lors de l'upload des fichiers";
+
+      toast.error("Erreur lors de l'upload des fichiers", {
+        description: errorMessage,
+      });
+
+      throw error;
+    } finally {
+      setIsUploadingFiles(false);
+    }
+  };
 
   const typeLabels: Record<RequestTypeUI, string> = {
     [RequestType.FDM]: "Fiche descriptive de mission",
@@ -62,6 +132,15 @@ export function RequestPage() {
         toast.error("Utilisateur non connecté. Veuillez vous reconnecter.");
         return;
       }
+
+      // Validate form
+      const validation = validateFDMForm(formData);
+      if (!validation.isValid) {
+        setValidationErrors(validation.errors);
+        toast.error("Veuillez corriger les erreurs du formulaire");
+        return;
+      }
+      setValidationErrors([]);
 
       setIsLoading(true);
 
@@ -87,6 +166,23 @@ export function RequestPage() {
 
       console.log("✅ FDM créée avec succès:", result);
 
+      // Defensive check: backend may return null object (wrap issue); abort if missing reference
+      if (!result || !result.reference) {
+        const msg =
+          "Le serveur n'a pas retourné la référence de la FDM; opération interrompue.";
+        console.error(msg, result);
+        setValidationErrors([{ field: "server", message: msg }]);
+        toast.error("Erreur serveur: référence manquante", {
+          description: msg,
+        });
+        return;
+      }
+
+      // Upload fichiers si présents
+      if (formData.fichiers && formData.fichiers.length > 0) {
+        await uploadFilesForDemande("FDM", result.reference, formData.fichiers);
+      }
+
       toast.success("Fiche descriptive de mission créée avec succès", {
         description: `Référence: ${result.reference}`,
       });
@@ -99,6 +195,11 @@ export function RequestPage() {
         error.response?.data?.message ||
         error.message ||
         "Erreur lors de la création de la demande";
+
+      // Afficher l'erreur du serveur en rouge
+      if (error.response?.data?.message) {
+        setValidationErrors([{ field: "server", message: errorMessage }]);
+      }
 
       toast.error("Erreur lors de l'enregistrement", {
         description: errorMessage,
@@ -116,6 +217,16 @@ export function RequestPage() {
         toast.error("Utilisateur non connecté. Veuillez vous reconnecter.");
         return;
       }
+
+      // Validate form
+      const validation = validateRFDMForm(formData);
+      if (!validation.isValid) {
+        setValidationErrors(validation.errors);
+        toast.error("Veuillez corriger les erreurs du formulaire");
+        return;
+      }
+      setValidationErrors([]);
+
       setIsLoading(true);
 
       const payload: CreateRapportFinancierRequest = {
@@ -135,6 +246,15 @@ export function RequestPage() {
 
       const result = await RapportFinancierAPI.create(payload);
 
+      // Upload fichiers si présents
+      if (formData.fichiers && formData.fichiers.length > 0) {
+        await uploadFilesForDemande(
+          "RFDM",
+          result.reference,
+          formData.fichiers
+        );
+      }
+
       toast.success("Rapport financier créé avec succès", {
         description: `Référence: ${result.reference}`,
       });
@@ -145,6 +265,12 @@ export function RequestPage() {
         error.response?.data?.message ||
         error.message ||
         "Erreur lors de l'enregistrement du rapport financier";
+
+      // Afficher l'erreur du serveur en rouge
+      if (error.response?.data?.message) {
+        setValidationErrors([{ field: "server", message: errorMessage }]);
+      }
+
       toast.error("Erreur lors de l'enregistrement du rapport financier", {
         description: errorMessage,
       });
@@ -160,6 +286,16 @@ export function RequestPage() {
         toast.error("Utilisateur non connecté. Veuillez vous reconnecter.");
         return;
       }
+
+      // Validate form
+      const validation = validateDDAForm(formData);
+      if (!validation.isValid) {
+        setValidationErrors(validation.errors);
+        toast.error("Veuillez corriger les erreurs du formulaire");
+        return;
+      }
+      setValidationErrors([]);
+
       setIsLoading(true);
 
       const payload: CreateDemandeAchatRequest = {
@@ -178,6 +314,11 @@ export function RequestPage() {
       };
 
       const result = await DemandeAchatAPI.create(payload);
+
+      // Upload fichiers si présents
+      if (formData.fichiers && formData.fichiers.length > 0) {
+        await uploadFilesForDemande("DDA", result.reference, formData.fichiers);
+      }
 
       toast.success("Demande d'achat créée avec succès", {
         description: `Référence: ${result.reference}`,
@@ -204,6 +345,15 @@ export function RequestPage() {
         toast.error("Utilisateur non connecté. Veuillez vous reconnecter.");
         return;
       }
+
+      // Validate form
+      const validation = validateBonPourForm(formData);
+      if (!validation.isValid) {
+        setValidationErrors(validation.errors);
+        toast.error("Veuillez corriger les erreurs du formulaire");
+        return;
+      }
+      setValidationErrors([]);
 
       setIsLoading(true);
 
@@ -258,12 +408,7 @@ export function RequestPage() {
 
     switch (selectedType) {
       case RequestType.FDM:
-        return (
-          <MissionForm
-            onSave={handleSaveFDM}
-            isLoading={isLoading}
-          />
-        );
+        return <MissionForm onSave={handleSaveFDM} isLoading={isLoading} />;
 
       case RequestType.RFDM:
         return (
@@ -279,12 +424,7 @@ export function RequestPage() {
         );
 
       case RequestType.BONPOUR:
-        return (
-          <BonPourForm
-            onSave={handleSaveBonPour}
-            isLoading={isLoading}
-          />
-        );
+        return <BonPourForm onSave={handleSaveBonPour} isLoading={isLoading} />;
 
       case RequestType.CONGE:
       case "FORMATION":
@@ -361,6 +501,11 @@ export function RequestPage() {
       </Card>
 
       <div className="flex-1 overflow-y-auto pr-2">
+        {validationErrors.length > 0 && (
+          <div className="mb-6">
+            <ValidationErrors errors={validationErrors} />
+          </div>
+        )}
         <div className="pb-6">{renderFormByType()}</div>
       </div>
     </div>

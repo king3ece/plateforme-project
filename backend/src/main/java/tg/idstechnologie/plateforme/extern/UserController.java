@@ -2,6 +2,7 @@ package tg.idstechnologie.plateforme.extern;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import tg.idstechnologie.plateforme.dao.user.UserRepository;
 import tg.idstechnologie.plateforme.exceptions.ObjectNotValidException;
@@ -66,7 +67,9 @@ public class UserController {
      * Mise à jour
      */
     @PutMapping
-    public ResponseEntity<ResponseModel> putEntity(@RequestBody User user) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseModel> putEntity(@RequestBody User user, Principal connectedUser) {
+        System.out.println("🔍 UPDATE USER - Utilisateur connecté: " + connectedUser.getName());
         return ResponseEntity.ok(userInterface.updateEntity(user));
     }
 
@@ -74,6 +77,7 @@ public class UserController {
      * Listing paginé
      */
     @GetMapping("/not-deleted")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseModel> getAllEntityNotDeleted(
             @RequestParam(defaultValue = "0") int page,
     @RequestParam(defaultValue = "30") int size) {
@@ -86,6 +90,7 @@ public class UserController {
      * Récupère par référence
      */
     @GetMapping("/{ref}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseModel> getOneEntityNotDeleted(@PathVariable String ref) {
         ResponseModel response = userInterface.getOneEntityNotDeleted(ref);
         return ResponseEntity.ok(response);
@@ -95,6 +100,7 @@ public class UserController {
      * Soft-delete par référence
      */
     @DeleteMapping("/delete-user/{ref}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseModel> deleteOneEntityNotDeleted(@PathVariable String ref) {
         ResponseModel response = userInterface.deleteOneEntityNotDeleted(ref);
         return ResponseEntity.ok(response);

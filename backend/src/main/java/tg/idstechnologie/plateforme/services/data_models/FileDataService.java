@@ -1,6 +1,6 @@
 package tg.idstechnologie.plateforme.services.data_models;
 
-import lombok.*;
+// import lombok.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -42,9 +42,8 @@ public class FileDataService implements FileDataInterface {
 
 
         FileData folder=fileDataDao.save(fileData);
-        //
 
-        return new ResponseConstant().ok("Action effectuée avec succes");
+        return new ResponseConstant().ok(folder);
     }
 
     @Override

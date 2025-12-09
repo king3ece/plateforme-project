@@ -1,5 +1,4 @@
 package tg.idstechnologie.plateforme.extern;
-
 import org.springframework.data.domain.Pageable;
 import tg.idstechnologie.plateforme.secu.user.*;
 import tg.idstechnologie.plateforme.response.ResponseModel;

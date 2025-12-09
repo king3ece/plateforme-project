@@ -4,6 +4,8 @@ package tg.idstechnologie.plateforme.handler;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import tg.idstechnologie.plateforme.exceptions.ObjectNotValidException;
@@ -19,23 +21,27 @@ public class GlobalExceptionHandler {
     private final ResponseConstant responseConstant;
 
     @ExceptionHandler(ObjectNotValidException.class)
-    public ResponseModel handleObjectNotValidException(ObjectNotValidException e) {
-        return responseConstant.badRequest(e.getErrorMessage(),null);
+    public ResponseEntity<ResponseModel> handleObjectNotValidException(ObjectNotValidException e) {
+        ResponseModel body = responseConstant.badRequest(e.getErrorMessage(), null);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseModel handleDuplicateKeyException(DataIntegrityViolationException e) {
-        //Loggin des erreurs
-        return responseConstant.badRequest("Violation des contraintes d'integrités",null);
+    public ResponseEntity<ResponseModel> handleDuplicateKeyException(DataIntegrityViolationException e) {
+        // Logging des erreurs
+        ResponseModel body = responseConstant.badRequest("Violation des contraintes d'integrités", null);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(StorageFileNotFoundException.class)
-    public ResponseModel handleStorageFileNotFound(StorageFileNotFoundException exc) {
-        return responseConstant.badRequest(exc.getMessage(),null);
+    public ResponseEntity<ResponseModel> handleStorageFileNotFound(StorageFileNotFoundException exc) {
+        ResponseModel body = responseConstant.badRequest(exc.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(StorageException.class)
-    public ResponseModel handleStorageException(StorageException exc) {
-        return responseConstant.badRequest(exc.getMessage(),null);
+    public ResponseEntity<ResponseModel> handleStorageException(StorageException exc) {
+        ResponseModel body = responseConstant.badRequest(exc.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 }

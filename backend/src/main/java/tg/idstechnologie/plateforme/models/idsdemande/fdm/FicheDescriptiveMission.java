@@ -81,8 +81,19 @@ public class FicheDescriptiveMission extends BaseDemande {
     @Column(name = "total_estimatif", nullable = false)
     private Double totalEstimatif;
 
-    private double sommeTotalEstimatif() {
-        return perdieme + transport + peage + laisserPasser + hotel + divers;
+    /**
+     * Calcule automatiquement le total estimatif avant persist/update
+     */
+    @PrePersist
+    @PreUpdate
+    public void calculerTotalEstimatif() {
+        this.totalEstimatif = (perdieme != null ? perdieme : 0.0) +
+                (transport != null ? transport : 0.0) +
+                (bonEssence != null ? bonEssence : 0.0) +
+                (peage != null ? peage : 0.0) +
+                (laisserPasser != null ? laisserPasser : 0.0) +
+                (hotel != null ? hotel : 0.0) +
+                (divers != null ? divers : 0.0);
     }
 
 }

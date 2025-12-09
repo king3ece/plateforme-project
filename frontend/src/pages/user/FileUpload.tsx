@@ -1,23 +1,4 @@
-// import React from 'react';
 
-// interface Props {
-//   onFilesChange: (files: File[]) => void;
-// }
-
-// export function FileUpload({ onFilesChange }: Props) {
-//   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//     const files = e.target.files ? Array.from(e.target.files) : [];
-//     onFilesChange(files);
-//   };
-
-//   return (
-//     <div>
-//       <input type="file" multiple onChange={handleChange} />
-//     </div>
-//   );
-// }
-
-// export default FileUpload;
 
 import React, { useRef, useState } from "react";
 import { Upload, X, File as FileIcon } from "lucide-react";
@@ -158,6 +139,8 @@ export function FileUpload({
           accept={acceptedTypes.join(",")}
           onChange={handleFileSelect}
           className="hidden"
+          title="Sélectionnez des fichiers à télécharger"
+          placeholder="Sélectionnez des fichiers"
         />
       </div>
 

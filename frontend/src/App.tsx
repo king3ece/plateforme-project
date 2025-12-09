@@ -5,6 +5,7 @@ import { LoginPage } from "./pages/auth/LoginPage";
 import { AdminLayout } from "./components/layout/AdminLayout";
 import { UserLayout } from "./components/layout/UserLayout";
 import { UserDashboard } from "./pages/user/UserDashboard";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { FDMPage } from "./pages/user/DemandesPage";
 // import { DemandesPage, FDMPage } from "./pages/user/DemandesPage";
 import { RequestPage } from "./pages/user/RequestPage";
@@ -32,7 +33,7 @@ const RootRedirect = () => {
     const user = JSON.parse(userStr);
     const role = (user as any).roles ?? user.role;
     if (role === UserRole.ADMIN) {
-      return <Navigate to="/admin/users" replace />;
+      return <Navigate to="/admin/dashboard" replace />;
     }
     return <Navigate to="/user" replace />;
   } catch {
@@ -60,7 +61,8 @@ export default function App() {
               </PrivateRoute>
             }
           >
-            <Route index element={<Navigate to="/admin/users" replace />} />
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="subdivisions" element={<SubdivisionsPage />} />
             <Route

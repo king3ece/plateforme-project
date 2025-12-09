@@ -1,27 +1,29 @@
-import {Poste} from "./Poste";
+import { Poste } from "./Poste";
+import { Subdivision } from "./Subdivision";
 
 export enum UserRole {
-  ADMIN = 'ADMIN',
-  USER = 'USER'
+  ADMIN = "ADMIN",
+  USER = "USER",
 }
 
 export interface User {
-    id: number;
-    reference: string;
-    name: string;
-    lastName: string;
-    email: string;
+  id: number;
+  reference: string;
+  name: string;
+  lastName: string;
+  email: string;
   // Backend may use `roles` (enum) or `role` — accept both
   role?: UserRole;
   roles?: UserRole;
   posteRef?: string | null;
   posteId?: number;
   poste?: Poste | null;
-    createdAt?: string;
-    updatedAt?: string;
+  subdivision?: Subdivision | null;
+  createdAt?: string;
+  updatedAt?: string;
   enable?: boolean; // valeur reçue du back (typo kept from backend)
   isEnabled?: boolean; // alias plus lisible
-};
+}
 
 export interface CreateUserDTO {
   name: string;
@@ -30,7 +32,7 @@ export interface CreateUserDTO {
   password: string;
   role?: UserRole;
   poste?: Poste;
-  posteRef?: Poste['reference'];
+  posteRef?: Poste["reference"];
 }
 
 export interface UpdateUserDTO {

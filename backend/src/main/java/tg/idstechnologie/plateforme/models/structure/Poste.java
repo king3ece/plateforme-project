@@ -1,7 +1,6 @@
 package tg.idstechnologie.plateforme.models.structure;
 
-
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -33,6 +32,7 @@ public class Poste extends BaseEntity {
 //    @JoinColumn(name = "subdivision_id")
 //    private Subdivision subdivision;
 
-    @OneToMany(mappedBy = "poste",fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "poste", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<User> users;
 }

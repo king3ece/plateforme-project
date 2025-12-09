@@ -5,7 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
-import tg.idstechnologie.plateforme.models.structure.Poste;
+// import tg.idstechnologie.plateforme.models.structure.Poste;
 import tg.idstechnologie.plateforme.models.structure.TypeSubdivision;
 
 import java.util.Optional;

@@ -5,7 +5,7 @@ import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import tg.idstechnologie.plateforme.models.base.BaseEntity;
 import tg.idstechnologie.plateforme.models.data_models.FileData;
-import tg.idstechnologie.plateforme.models.structure.Poste;
+// import tg.idstechnologie.plateforme.models.structure.Poste;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -28,4 +28,9 @@ public class FileDataPieceJointe  extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "piece_jointe_id")
     private PieceJointe pieceJointe;
+
+    // Convenience: expose pieceJointe reference for searches (not persisted separately)
+    public String getPieceJointeReference() {
+        return pieceJointe != null ? pieceJointe.getReference() : null;
+    }
 }

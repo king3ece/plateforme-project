@@ -5,7 +5,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import tg.idstechnologie.plateforme.dao.user.UserRepository;
-import tg.idstechnologie.plateforme.secu.user.*;
+import tg.idstechnologie.plateforme.secu.user.Role;
+import tg.idstechnologie.plateforme.secu.user.User;
 
 @Component
 @RequiredArgsConstructor
@@ -15,47 +16,65 @@ public class DefaulUsersInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public void run(String... args) {
-        // Email réservé pour l’admin par défaut
-        final String adminEmail = "admin@plateforme.com";
-
-        // Vérifie s’il existe déjà un ADMIN
-        boolean adminRoleExists = userRepository.findByRoles(Role.ADMIN).isPresent();
-
-        // Vérifie si l’email admin existe déjà
-        boolean adminEmailExists = userRepository.findByEmail(adminEmail).isPresent();
-
-        if (!adminRoleExists && !adminEmailExists) {
-            User admin = User.builder()
-                    .name("Super")
+    public void run(String... args) throws Exception {
+        // Vérifier si l'utilisateur admin existe déjà
+        if (userRepository.findByEmail("admin@idstechnologie.com").isEmpty()) {
+            
+            // ✅ ÉTAPE 1 : Créer l'utilisateur système
+            User systemUser = User.builder()
+                    .name("System")
                     .lastName("Admin")
-                    .email(adminEmail)
-                    .password(passwordEncoder.encode("admin123")) // ⚠️ change en prod
+                    .email("system@idstechnologie.com")
+                    .password(passwordEncoder.encode("SystemPassword123"))
                     .roles(Role.ADMIN)
                     .enable(true)
                     .delete(false)
                     .build();
-
-            userRepository.save(admin);
-            System.out.println("✅ Utilisateur ADMIN créé : " + adminEmail + " / admin123");
-        } else {
-            System.out.println("ℹ️ Un ADMIN existe déjà (par rôle ou email).");
-        }
-        // Email réservé pour l’utilisateur par défaut
-        final String userEmail = "user@plateforme.com";
-
-        if (userRepository.findByEmail(userEmail).isEmpty()) {
-            User user = User.builder()
-                    .name("Default")
-                    .lastName("User")
-                    .email(userEmail)
-                    .password(passwordEncoder.encode("puser123")) // mot de passe par défaut
+            
+            // Sauvegarder l'utilisateur système (createdBy sera null pour le premier)
+            User savedSystemUser = userRepository.save(systemUser);
+            
+            // ✅ ÉTAPE 2 : Récupérer l'ID du système user
+            Long systemUserId = savedSystemUser.getId();
+            
+            // ✅ ÉTAPE 3 : Mettre à jour avec son propre ID comme createdBy
+            savedSystemUser.setCreatedBy(systemUserId);
+            userRepository.save(savedSystemUser);
+            
+            // ✅ ÉTAPE 4 : Créer l'utilisateur admin
+            User adminUser = User.builder()
+                    .name("Admin")
+                    .lastName("Plateforme")
+                    .email("admin@idstechnologie.com")
+                    .password(passwordEncoder.encode("AdminPassword123"))
+                    .roles(Role.ADMIN)
+                    .enable(true)
+                    .delete(false)
+                    .build();
+            
+            // ✅ Remplir createdBy avec l'ID du système
+            adminUser.setCreatedBy(systemUserId);
+            userRepository.save(adminUser);
+            
+            // ✅ ÉTAPE 5 : Créer l'utilisateur par défaut
+            User userDefault = User.builder()
+                    .name("User")
+                    .lastName("Default")
+                    .email("user@idstechnologie.com")
+                    .password(passwordEncoder.encode("UserPassword123"))
                     .roles(Role.USER)
                     .enable(true)
-                    .delete(false) // ✅ ajout obligatoire
+                    .delete(false)
                     .build();
-            userRepository.save(user);
-            System.out.println("✅ Utilisateur par défaut créé : " + userEmail);
+            
+            // ✅ Remplir createdBy avec l'ID du système
+            userDefault.setCreatedBy(systemUserId);
+            userRepository.save(userDefault);
+            
+            System.out.println("✅ Utilisateurs par défaut créés avec succès !");
+            System.out.println("   - System User (ID: " + systemUserId + ")");
+            System.out.println("   - Admin User");
+            System.out.println("   - Default User");
         }
     }
 }

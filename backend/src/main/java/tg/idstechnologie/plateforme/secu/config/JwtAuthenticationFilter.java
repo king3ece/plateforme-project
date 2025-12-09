@@ -62,6 +62,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         )
                 );
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                // Debug: afficher les autorités de l'utilisateur connecté
+                System.out.println("🔐 JWT Auth - User: " + userEmail + ", Authorities: " + userDetails.getAuthorities());
             }
         }
         filterChain.doFilter(request, response);

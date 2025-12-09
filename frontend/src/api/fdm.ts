@@ -41,7 +41,10 @@ export const FicheDescriptiveMissionAPI = {
     }
   },
 
-  getMyRequests: async (page = 0, size = 30): Promise<FicheDescriptiveMission[]> => {
+  getMyRequests: async (
+    page = 0,
+    size = 30
+  ): Promise<FicheDescriptiveMission[]> => {
     try {
       const response = await axiosInstance.get<
         ApiResponse<PaginatedResponse<FicheDescriptiveMission>>
@@ -53,7 +56,10 @@ export const FicheDescriptiveMissionAPI = {
     }
   },
 
-  getPendingValidations: async (page = 0, size = 30): Promise<FicheDescriptiveMission[]> => {
+  getPendingValidations: async (
+    page = 0,
+    size = 30
+  ): Promise<FicheDescriptiveMission[]> => {
     try {
       const response = await axiosInstance.get<
         ApiResponse<PaginatedResponse<FicheDescriptiveMission>>
@@ -66,25 +72,33 @@ export const FicheDescriptiveMissionAPI = {
   },
 
   getByRef: async (reference: string): Promise<FicheDescriptiveMission> => {
-    const response = await axiosInstance.get<ApiResponse<FicheDescriptiveMission>>(
-      `/fdms/${reference}`
-    );
+    const response = await axiosInstance.get<
+      ApiResponse<FicheDescriptiveMission>
+    >(`/fdms/${reference}`);
     return response.data.object;
   },
 
   create: async (data: CreateFDMRequest): Promise<FicheDescriptiveMission> => {
-    const response = await axiosInstance.post<ApiResponse<FicheDescriptiveMission>>(
-      "/fdms/add-fdm",
-      data
-    );
+    const response = await axiosInstance.post<
+      ApiResponse<FicheDescriptiveMission>
+    >("/fdms/add-fdm", data);
+    // Debug: surface the full API response to help diagnose null object issues
+    console.debug("FDM create response:", response.data);
+    // If backend returned a non-OK code, throw so callers handle it as an error
+    if (response.data?.code && response.data.code !== 200) {
+      const msg =
+        response.data.message || "Erreur lors de la création de la FDM";
+      const err = new Error(msg) as any;
+      err.response = response;
+      throw err;
+    }
     return response.data.object;
   },
 
   update: async (fdm: UpdateFDMRequest): Promise<FicheDescriptiveMission> => {
-    const response = await axiosInstance.put<ApiResponse<FicheDescriptiveMission>>(
-      "/fdms",
-      fdm
-    );
+    const response = await axiosInstance.put<
+      ApiResponse<FicheDescriptiveMission>
+    >("/fdms", fdm);
     return response.data.object;
   },
 
@@ -92,21 +106,20 @@ export const FicheDescriptiveMissionAPI = {
     id: number,
     data: { decision: TraitementDecision; commentaire?: string }
   ): Promise<void> => {
-    await axiosInstance.post<ApiResponse<string>>(
-      `/fdms/${id}/traiter`,
-      data
-    );
+    await axiosInstance.post<ApiResponse<string>>(`/fdms/${id}/traiter`, data);
   },
 
   delete: async (reference: string): Promise<void> => {
     await axiosInstance.delete<ApiResponse<void>>(`/fdms/${reference}`);
   },
 
-  reglerFDM: async (id: number, regler: boolean): Promise<FicheDescriptiveMission> => {
-    const response = await axiosInstance.put<ApiResponse<FicheDescriptiveMission>>(
-      "/fdms",
-      { id, regler }
-    );
+  reglerFDM: async (
+    id: number,
+    regler: boolean
+  ): Promise<FicheDescriptiveMission> => {
+    const response = await axiosInstance.put<
+      ApiResponse<FicheDescriptiveMission>
+    >("/fdms", { id, regler });
     return response.data.object;
   },
 };

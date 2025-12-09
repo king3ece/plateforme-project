@@ -1,6 +1,7 @@
 package tg.idstechnologie.plateforme.interfaces.idsdemande.fdm;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 import tg.idstechnologie.plateforme.models.idsdemande.fdm.FicheDescriptiveMission;
 import tg.idstechnologie.plateforme.response.ResponseModel;
 import tg.idstechnologie.plateforme.utils.Choix_decisions;
@@ -14,4 +15,5 @@ public interface FicheDescriptiveMissionInterface {
     public ResponseModel getMyRequests(Pageable pageable);
     public ResponseModel getPendingValidations(Pageable pageable);
     public ResponseModel traiterFDM(Long fdmId, Choix_decisions decision, String commentaire);
+    public ResponseModel uploadFilesToFDM(String reference, MultipartFile[] files);
 }

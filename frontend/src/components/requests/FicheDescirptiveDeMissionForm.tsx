@@ -13,6 +13,7 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Alert, AlertDescription } from "../ui/alert";
 import { AlertCircle } from "lucide-react";
+import { FileUpload } from "../../pages/user/FileUpload";
 
 interface FDMFormData {
   nomProjet: string;
@@ -28,6 +29,7 @@ interface FDMFormData {
   laisserPasser: number;
   hotel: number;
   divers: number;
+  fichiers?: File[];
 }
 
 interface MissionFormProps {
@@ -36,8 +38,13 @@ interface MissionFormProps {
   isLoading?: boolean;
 }
 
-export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps) {
+export function MissionForm({
+  initialData,
+  onSave,
+  isLoading,
+}: MissionFormProps) {
   const [error, setError] = useState<string>("");
+  const [fichiersUpload, setFichiersUpload] = useState<File[]>([]);
 
   const {
     control,
@@ -64,6 +71,11 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
     mode: "onChange",
   });
 
+  const handleFilesChange = (files: File[]) => {
+    setFichiersUpload(files);
+    setValue("fichiers", files as any);
+  };
+
   const submit = async (formData: FDMFormData) => {
     setError("");
     try {
@@ -76,10 +88,10 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
         "hotel",
         "divers",
       ];
-      const parsedData = { ...formData };
+      const parsedData = { ...formData } as any;
       numericFields.forEach((field) => {
         // react-hook-form peut renvoyer des strings pour les inputs number
-        parsedData[field] = Number(formData[field]) as FDMFormData[typeof field];
+        parsedData[field] = Number(formData[field]);
       });
       await onSave(parsedData);
     } catch (e) {
@@ -113,8 +125,15 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
   const divers = watch("divers") || 0;
 
   const totalEstimatif = React.useMemo(() => {
-    return Number(perdieme) + Number(transport) + Number(bonEssence) + 
-           Number(peage) + Number(laisserPasser) + Number(hotel) + Number(divers);
+    return (
+      Number(perdieme) +
+      Number(transport) +
+      Number(bonEssence) +
+      Number(peage) +
+      Number(laisserPasser) +
+      Number(hotel) +
+      Number(divers)
+    );
   }, [perdieme, transport, bonEssence, peage, laisserPasser, hotel, divers]);
 
   return (
@@ -122,7 +141,9 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
       <Card>
         <CardHeader>
           <CardTitle>Fiche Descriptive de Mission (FDM)</CardTitle>
-          <CardDescription>Remplissez les informations de votre mission</CardDescription>
+          <CardDescription>
+            Remplissez les informations de votre mission
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -132,9 +153,27 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
             </Alert>
           )}
 
+          {/* Error Summary */}
+          {Object.keys(errors).length > 0 && (
+            <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded">
+              <h4 className="font-semibold text-red-700 mb-2">
+                Erreurs trouvées:
+              </h4>
+              <ul className="list-disc list-inside space-y-1">
+                {Object.entries(errors).map(([field, error]) => (
+                  <li key={field} className="text-sm text-red-600">
+                    {error?.message || `${field} est requis`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div>
-              <Label htmlFor="nomProjet">Nom du projet *</Label>
+              <Label htmlFor="nomProjet">
+                <span className="text-red-600">*</span> Nom du projet
+              </Label>
               <Controller
                 name="nomProjet"
                 control={control}
@@ -149,12 +188,16 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
                 )}
               />
               {errors.nomProjet && (
-                <p className="text-sm text-red-600 mt-1">{errors.nomProjet.message}</p>
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.nomProjet.message}
+                </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="lieuMission">Lieu de la mission *</Label>
+              <Label htmlFor="lieuMission">
+                <span className="text-red-600">*</span> Lieu de la mission
+              </Label>
               <Controller
                 name="lieuMission"
                 control={control}
@@ -169,12 +212,16 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
                 )}
               />
               {errors.lieuMission && (
-                <p className="text-sm text-red-600 mt-1">{errors.lieuMission.message}</p>
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.lieuMission.message}
+                </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="objectifMission">Objectif de la mission *</Label>
+              <Label htmlFor="objectifMission">
+                <span className="text-red-600">*</span> Objectif de la mission
+              </Label>
               <Controller
                 name="objectifMission"
                 control={control}
@@ -190,14 +237,18 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
                 )}
               />
               {errors.objectifMission && (
-                <p className="text-sm text-red-600 mt-1">{errors.objectifMission.message}</p>
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.objectifMission.message}
+                </p>
               )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="dateDepart">Date de départ *</Label>
+              <Label htmlFor="dateDepart">
+                <span className="text-red-600">*</span> Date de départ
+              </Label>
               <Controller
                 name="dateDepart"
                 control={control}
@@ -212,12 +263,16 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
                 )}
               />
               {errors.dateDepart && (
-                <p className="text-sm text-red-600 mt-1">{errors.dateDepart.message}</p>
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.dateDepart.message}
+                </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="dateProbableRetour">Date probable de retour *</Label>
+              <Label htmlFor="dateProbableRetour">
+                <span className="text-red-600">*</span> Date probable de retour
+              </Label>
               <Controller
                 name="dateProbableRetour"
                 control={control}
@@ -227,12 +282,16 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
                     {...field}
                     id="dateProbableRetour"
                     type="date"
-                    className={errors.dateProbableRetour ? "border-red-500" : ""}
+                    className={
+                      errors.dateProbableRetour ? "border-red-500" : ""
+                    }
                   />
                 )}
               />
               {errors.dateProbableRetour && (
-                <p className="text-sm text-red-600 mt-1">{errors.dateProbableRetour.message}</p>
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.dateProbableRetour.message}
+                </p>
               )}
             </div>
 
@@ -255,8 +314,10 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
           </div>
 
           <div className="border-t pt-4 mt-6">
-            <h3 className="text-lg font-semibold text-blue-700 mb-4">Estimations financières</h3>
-            
+            <h3 className="text-lg font-semibold text-blue-700 mb-4">
+              Estimations financières
+            </h3>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="perdieme">Per diem (CFA)</Label>
@@ -275,7 +336,12 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
                   name="transport"
                   control={control}
                   render={({ field }) => (
-                    <Input {...field} id="transport" type="number" step="0.01" />
+                    <Input
+                      {...field}
+                      id="transport"
+                      type="number"
+                      step="0.01"
+                    />
                   )}
                 />
               </div>
@@ -286,7 +352,12 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
                   name="bonEssence"
                   control={control}
                   render={({ field }) => (
-                    <Input {...field} id="bonEssence" type="number" step="0.01" />
+                    <Input
+                      {...field}
+                      id="bonEssence"
+                      type="number"
+                      step="0.01"
+                    />
                   )}
                 />
               </div>
@@ -308,7 +379,12 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
                   name="laisserPasser"
                   control={control}
                   render={({ field }) => (
-                    <Input {...field} id="laisserPasser" type="number" step="0.01" />
+                    <Input
+                      {...field}
+                      id="laisserPasser"
+                      type="number"
+                      step="0.01"
+                    />
                   )}
                 />
               </div>
@@ -340,10 +416,17 @@ export function MissionForm({ initialData, onSave, isLoading }: MissionFormProps
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold">Total estimatif:</span>
                 <span className="text-2xl font-bold text-blue-700">
-                  {totalEstimatif.toLocaleString('fr-FR')} CFA
+                  {totalEstimatif.toLocaleString("fr-FR")} CFA
                 </span>
               </div>
             </div>
+          </div>
+
+          <div className="border-t pt-6 mt-8">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">
+              Pièces jointes (optionnel)
+            </h3>
+            <FileUpload onFilesChange={handleFilesChange} />
           </div>
 
           <div className="flex justify-end pt-4">

@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
-import java.util.Objects;
+// import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -43,7 +43,7 @@ public class FileSystemStorageService implements StorageService {
     //private final FolderDao folderDao;
     private final UserRepository userRepository;
     private final FileDataDao fileDataDao;
-    //private final CurrentUserService currentUserService;
+    // private final CurrentUserService currentUserService;
 
     @Autowired
     public FileSystemStorageService(StorageProperties properties, FileDataService fileDataService, UserRepository userRepository, FileDataDao fileDataDao) {

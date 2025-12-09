@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import tg.idstechnologie.plateforme.models.structure.Poste;
-import tg.idstechnologie.plateforme.secu.user.User;
+// import tg.idstechnologie.plateforme.secu.user.User;
 
 import java.util.Optional;
 

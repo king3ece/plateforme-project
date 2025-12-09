@@ -8,7 +8,7 @@ import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { validators } from '../../utils/validators';
-import { FileText } from 'lucide-react';
+import { FileText, Eye, EyeOff, Mail, Lock, CheckCircle2 } from 'lucide-react';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -42,7 +42,7 @@ export const LoginPage = () => {
       const role = (user as any).roles ?? user.role;
 
       if (role === 'ADMIN') {
-        navigate('/admin');
+        navigate('/admin/dashboard');
       } else {
         navigate('/user');
       }

@@ -10,4 +10,5 @@ public interface ValidateurInterface {
     public ResponseModel getAllEntityNotDeleted(Pageable pageable);
     public ResponseModel getOneEntityNotDeleted(String ref);
     public ResponseModel deleteOneEntityNotDeleted(String ref);
+    public ResponseModel getValidateursByTypeProcessus(Long typeProcessusId);
 }

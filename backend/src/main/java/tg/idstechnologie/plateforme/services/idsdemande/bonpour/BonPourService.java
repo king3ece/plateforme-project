@@ -88,22 +88,55 @@ public class BonPourService implements BonPourInterface {
 
         List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode("BONPOUR");
         if (!validateurList.isEmpty()) {
-            Validateur validateur = validateurList.getFirst();
-            bonPour.setValidateurSuivant(validateur);
+            Validateur premierValidateur = validateurList.getFirst();
             bonPour.setDateEmission(LocalDateTime.now());
 
-            // Save BonPour first
-            BonPour savedBonPour = bonPourDao.save(bonPour);
+            // Check if emetteur is the first validator (auto-validation)
+            if (premierValidateur.getUser().getId().equals(emetteur.get().getId())) {
+                // Auto-validation: emetteur is the first validator
+                bonPour.setTraite(true);
+                bonPour.setFavorable(true);
+                bonPour.setValidateurSuivant(null);
 
-            // Associate and save each ligne with the BonPour
-            for (LigneBonPour ligne : bonPour.getLignes()) {
-                ligne.setBonPour(savedBonPour);
-                ligneBonPourDao.save(ligne);
+                // Save BonPour first
+                BonPour savedBonPour = bonPourDao.save(bonPour);
+
+                // Associate and save each ligne with the BonPour
+                for (LigneBonPour ligne : bonPour.getLignes()) {
+                    ligne.setBonPour(savedBonPour);
+                    ligneBonPourDao.save(ligne);
+                }
+
+                // Create automatic treatment record
+                TraitementBonPour autoTraitement = new TraitementBonPour();
+                autoTraitement.setBonPour(savedBonPour);
+                autoTraitement.setTraiteur(emetteur.get());
+                autoTraitement.setDecision(Choix_decisions.VALIDER);
+                autoTraitement.setCommentaire("Auto-validation : émetteur est le premier validateur");
+                autoTraitement.setDateTraitement(LocalDateTime.now());
+                traitementBonPourDao.save(autoTraitement);
+
+                savedBonPour.setTraitementPrecedent(autoTraitement);
+                bonPourDao.save(savedBonPour);
+
+                return new ResponseConstant().ok(savedBonPour);
+            } else {
+                // Normal flow: send to first validator
+                bonPour.setValidateurSuivant(premierValidateur);
+
+                // Save BonPour first
+                BonPour savedBonPour = bonPourDao.save(bonPour);
+
+                // Associate and save each ligne with the BonPour
+                for (LigneBonPour ligne : bonPour.getLignes()) {
+                    ligne.setBonPour(savedBonPour);
+                    ligneBonPourDao.save(ligne);
+                }
+
+                emailService.sendMailNewFdm(premierValidateur.getUser().getEmail(), savedBonPour.getId().toString(), emetteur.get().getEmail());
+
+                return new ResponseConstant().ok(savedBonPour);
             }
-
-            emailService.sendMailNewFdm(validateur.getUser().getEmail(), savedBonPour.getId().toString(), emetteur.get().getEmail());
-
-            return new ResponseConstant().ok(savedBonPour);
         } else {
             throw new ObjectNotValidException("Aucun validateur configuré pour BONPOUR");
         }
@@ -171,6 +204,39 @@ public class BonPourService implements BonPourInterface {
                         .mapToDouble(LigneBonPour::getMontant)
                         .sum();
                 item.setMontantTotal(montantTotal);
+            }
+
+            // Re-enter validation circuit after modification
+            List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode("BONPOUR");
+            if (!validateurList.isEmpty()) {
+                Validateur premierValidateur = validateurList.getFirst();
+
+                // Check if emetteur is the first validator (auto-validation)
+                if (premierValidateur.getUser().getId().equals(emetteur.get().getId())) {
+                    // Auto-validation: emetteur is the first validator
+                    item.setTraite(true);
+                    item.setFavorable(true);
+                    item.setValidateurSuivant(null);
+
+                    // Create automatic treatment record
+                    TraitementBonPour autoTraitement = new TraitementBonPour();
+                    autoTraitement.setBonPour(item);
+                    autoTraitement.setTraiteur(emetteur.get());
+                    autoTraitement.setDecision(Choix_decisions.VALIDER);
+                    autoTraitement.setCommentaire("Auto-validation après modification : émetteur est le premier validateur");
+                    autoTraitement.setDateTraitement(LocalDateTime.now());
+                    traitementBonPourDao.save(autoTraitement);
+
+                    item.setTraitementPrecedent(autoTraitement);
+                } else {
+                    // Normal flow: send to first validator
+                    item.setValidateurSuivant(premierValidateur);
+                    emailService.sendMailNewFdm(
+                            premierValidateur.getUser().getEmail(),
+                            item.getId().toString(),
+                            "Bon pour corrigé par " + emetteur.get().getEmail()
+                    );
+                }
             }
 
             bonPourDao.save(item);
@@ -285,11 +351,26 @@ public class BonPourService implements BonPourInterface {
             bonPour.setTraite(true);
             bonPour.setFavorable(false);
             bonPour.setValidateurSuivant(null);
+
+            // Notify emetteur about rejection
             emailService.sendMailNewFdm(
                     bonPour.getEmetteur().getEmail(),
                     bonPour.getId().toString(),
-                    "Votre bon pour a été rejeté: " + commentaire
+                    "Votre bon pour a été rejeté par " + currentUser.getLastName() + " " + currentUser.getName() + ": " + commentaire
             );
+
+            // Notify all previous validators about rejection
+            List<TraitementBonPour> previousTraitements = traitementBonPourDao.findByBonPourId(bonPour.getId());
+            for (TraitementBonPour previousTraitement : previousTraitements) {
+                if (previousTraitement.getTraiteur() != null &&
+                    !previousTraitement.getTraiteur().getId().equals(currentUser.getId())) {
+                    emailService.sendMailNewFdm(
+                            previousTraitement.getTraiteur().getEmail(),
+                            bonPour.getId().toString(),
+                            "Le bon pour que vous avez validé a été rejeté par " + currentUser.getLastName() + " " + currentUser.getName()
+                    );
+                }
+            }
         } else if (decision == Choix_decisions.A_CORRIGER) {
             bonPour.setTraite(false);
             Validateur validateurActuel = bonPour.getValidateurSuivant();

@@ -9,6 +9,7 @@ export interface LigneDemandeAchat {
   ligneReference?: string;
   prixUnitaire: number;
   quantite: number;
+  prixTotal?: number; // Calculé automatiquement côté backend
 }
 
 export interface TraitementDemandeAchat {
@@ -37,10 +38,36 @@ export interface DemandeAchat {
   client: string;
   montantProjet?: number;
   prixTotal: number;
+
+  // Nouveaux champs pour gestion financière
+  remise?: number;
+  prixTotalEffectif: number;
+  tva: number;
+  ttc: number;
+  appliquerTva: boolean;
+
+  // Champs de livraison
+  delaiLivraison?: string;
+  lieuLivraison?: string;
+  conditionPaiement?: string;
+
+  // Fichiers
+  fichierProforma?: string;
+  fichierBonCommande?: string;
+
+  // Statuts
+  commander: boolean;
   commentaire?: string;
   lignes: LigneDemandeAchat[];
   dateReglement?: string | null;
   regler: boolean;
+
+  // Champs audit
+  createDate?: string;
+  lastModified?: string;
+  createdBy?: number;
+  lastModifiedBy?: number;
+  delete?: boolean;
 }
 
 export interface CreateDemandeAchatRequest {
@@ -51,6 +78,18 @@ export interface CreateDemandeAchatRequest {
   montantProjet?: number;
   commentaire?: string;
   lignes: LigneDemandeAchat[];
+
+  // Champs financiers optionnels
+  remise?: number;
+  appliquerTva?: boolean;
+
+  // Champs de livraison optionnels
+  delaiLivraison?: string;
+  lieuLivraison?: string;
+  conditionPaiement?: string;
+
+  // Fichiers optionnels
+  fichierProforma?: string;
 }
 
 export interface UpdateDemandeAchatRequest extends CreateDemandeAchatRequest {

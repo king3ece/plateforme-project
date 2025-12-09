@@ -83,7 +83,26 @@ export const usersAPI = {
   update: async (
     data: UpdateUserDTO & { reference: string }
   ): Promise<User> => {
-    const response = await axiosInstance.put<ApiResponse<User>>("/users", data);
+    // Build payload to match backend User structure
+    const payload: any = {
+      reference: data.reference,
+      name: data.name,
+      lastName: data.lastName,
+      email: data.email,
+      // include roles if present (backend uses getRoles)
+      ...(data.role ? { roles: data.role } : {}),
+      // include password only when provided
+      ...(data.password ? { password: data.password } : {}),
+    };
+
+    // Backend expects a nested 'poste' object with a 'reference' field
+    if (data.posteRef !== undefined) {
+      payload.poste = data.posteRef ? { reference: data.posteRef } : null;
+    }
+
+    console.debug("API PUT /users payload:", payload);
+
+    const response = await axiosInstance.put<ApiResponse<User>>("/users", payload);
     return response.data.object;
   },
 

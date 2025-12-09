@@ -5,10 +5,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import tg.idstechnologie.plateforme.interfaces.idsdemande.fdm.FicheDescriptiveMissionInterface;
 import tg.idstechnologie.plateforme.models.idsdemande.fdm.FicheDescriptiveMission;
 import tg.idstechnologie.plateforme.models.idsdemande.fdm.TraitementRequest;
 import tg.idstechnologie.plateforme.response.ResponseModel;
+import tg.idstechnologie.plateforme.file_upload.StorageService;
 
 @RestController
 @RequestMapping("/api/fdms")
@@ -16,6 +18,7 @@ import tg.idstechnologie.plateforme.response.ResponseModel;
 public class FicheDescriptiveMissionController {
 
     private final FicheDescriptiveMissionInterface ficheDescriptiveMissionInterface;
+    private final StorageService storageService;
 
     @GetMapping("/not-deleted")
     public ResponseEntity<ResponseModel> getAllEntityNotDeleted(
@@ -85,6 +88,14 @@ public class FicheDescriptiveMissionController {
                 request.getDecision(),
                 request.getCommentaire()
         );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{reference}/pieces-jointes")
+    public ResponseEntity<ResponseModel> uploadFilesForFDM(
+            @PathVariable String reference,
+            @RequestParam("files") MultipartFile[] files) {
+        ResponseModel response = ficheDescriptiveMissionInterface.uploadFilesToFDM(reference, files);
         return ResponseEntity.ok(response);
     }
 }

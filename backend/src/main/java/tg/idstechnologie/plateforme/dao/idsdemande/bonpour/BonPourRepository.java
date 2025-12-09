@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import tg.idstechnologie.plateforme.models.idsdemande.bonpour.BonPour;
+import tg.idstechnologie.plateforme.utils.Choix_decisions;
+import tg.idstechnologie.plateforme.secu.user.User;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,4 +43,11 @@ public interface BonPourRepository extends JpaRepository<BonPour, Long> {
     @Query(value = "SELECT * FROM bon_pours WHERE is_delete = false AND emetteur_id = :emetteurId ORDER BY create_date DESC",
             nativeQuery = true)
     List<BonPour> findAllByEmetteurId(@Param("emetteurId") Long emetteurId);
+
+    // Statistics methods
+    long countByEmetteurAndDeleteFalse(User emetteur);
+
+    long countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(User emetteur);
+
+    long countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(User emetteur, Choix_decisions decision);
 }

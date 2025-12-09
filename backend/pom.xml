@@ -124,7 +124,7 @@
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
 						</path>
-					</annotationProcessorPaths><source>8</source><target>8</target>
+					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
 			<plugin>

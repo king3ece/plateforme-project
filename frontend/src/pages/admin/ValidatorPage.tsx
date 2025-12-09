@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { workflowsAPI } from "../../api/workflows";
 import { usersAPI } from "../../api/users";
-import { postesAPI } from "../../api/postes";
 import {
   TypeProcessus,
   Validateur,
@@ -9,7 +8,6 @@ import {
   CreateValidateurDTO,
 } from "../../types/Workflow";
 import { User } from "../../types/User";
-import { Poste } from "../../types/Poste";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -35,7 +33,7 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { Badge } from "../../components/ui/badge";
-import { Plus, Trash2, Users as UsersIcon } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { validators } from "../../utils/validators";
 
@@ -45,29 +43,24 @@ export const WorkflowsPage = () => {
     useState<TypeProcessus | null>(null);
   const [validateurs, setValidateurs] = useState<Validateur[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [postes, setPostes] = useState<Poste[]>([]);
 
   const [isProcessusDialogOpen, setIsProcessusDialogOpen] = useState(false);
   const [isValidateurDialogOpen, setIsValidateurDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const [processusFormData, setProcessusFormData] =
-    useState<CreateTypeProcessusDTO>({ code: "", libelle: "", subdivisions: [], typeDemande: null})
+    useState<CreateTypeProcessusDTO>({ code: "", libelle: "" });
   const [validateurFormData, setValidateurFormData] =
     useState<CreateValidateurDTO>({
       typeProcessusId: 0,
       ordre: 1,
-      poste: null,
+      userId: undefined,
     });
-  const [validateurType, setValidateurType] = useState<"user" | "poste">(
-    "user"
-  );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadTypeProcessus();
     loadUsers();
-    loadPostes();
   }, []);
 
   useEffect(() => {
@@ -87,9 +80,7 @@ export const WorkflowsPage = () => {
 
   const loadValidateurs = async (typeProcessusId: number) => {
     try {
-      const data = await workflowsAPI.getValidateursByProcessus(
-        typeProcessusId
-      );
+      const data = await workflowsAPI.getAllValidateurs(typeProcessusId);
       setValidateurs(data);
     } catch (error) {
       toast.error("Erreur lors du chargement des validateurs");
@@ -102,15 +93,6 @@ export const WorkflowsPage = () => {
       setUsers(data);
     } catch (error) {
       toast.error("Erreur lors du chargement des utilisateurs");
-    }
-  };
-
-  const loadPostes = async () => {
-    try {
-      const data = await postesAPI.getAll();
-      setPostes(data);
-    } catch (error) {
-      toast.error("Erreur lors du chargement des postes");
     }
   };
 
@@ -153,11 +135,8 @@ export const WorkflowsPage = () => {
 
     const newErrors: Record<string, string> = {};
     if (!validateurFormData.ordre) newErrors.ordre = "L'ordre est requis";
-    if (validateurType === "user" && !validateurFormData.userId) {
+    if (!validateurFormData.userId) {
       newErrors.userId = "L'utilisateur est requis";
-    }
-    if (validateurType === "poste" && !validateurFormData.posteId) {
-      newErrors.posteId = "Le poste est requis";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -170,10 +149,7 @@ export const WorkflowsPage = () => {
       const data: CreateValidateurDTO = {
         typeProcessusId: selectedProcessus.id,
         ordre: validateurFormData.ordre,
-        userId:
-          validateurType === "user" ? validateurFormData.userId : undefined,
-        posteId:
-          validateurType === "poste" ? validateurFormData.posteId : undefined,
+        userId: validateurFormData.userId,
       };
 
       await workflowsAPI.createValidateur(data);
@@ -190,25 +166,26 @@ export const WorkflowsPage = () => {
     }
   };
 
-  const handleDeleteProcessus = async (id: number) => {
+  const handleDeleteProcessus = async (reference: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce type de processus ?"))
       return;
 
     try {
-      await workflowsAPI.deleteTypeProcessus(id);
+      await workflowsAPI.deleteTypeProcessus(reference);
       toast.success("Type de processus supprimé");
-      if (selectedProcessus?.id === id) setSelectedProcessus(null);
+      if (selectedProcessus?.reference === reference)
+        setSelectedProcessus(null);
       loadTypeProcessus();
     } catch (error) {
       toast.error("Erreur lors de la suppression");
     }
   };
 
-  const handleDeleteValidateur = async (id: number) => {
+  const handleDeleteValidateur = async (reference: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce validateur ?")) return;
 
     try {
-      await workflowsAPI.deleteValidateur(id);
+      await workflowsAPI.deleteValidateur(reference);
       toast.success("Validateur supprimé");
       if (selectedProcessus) loadValidateurs(selectedProcessus.id);
     } catch (error) {
@@ -220,8 +197,8 @@ export const WorkflowsPage = () => {
     setValidateurFormData({
       typeProcessusId: 0,
       ordre: validateurs.length + 1,
+      userId: undefined,
     });
-    setValidateurType("user");
     setErrors({});
   };
 
@@ -304,7 +281,7 @@ export const WorkflowsPage = () => {
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteProcessus(processus.id);
+                      handleDeleteProcessus(processus.reference);
                     }}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -370,103 +347,40 @@ export const WorkflowsPage = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Type de validateur *</Label>
+                        <Label htmlFor="user">Utilisateur *</Label>
                         <Select
-                          value={validateurType}
-                          onValueChange={(value: "user" | "poste") => {
-                            setValidateurType(value);
+                          value={validateurFormData.userId?.toString() || ""}
+                          onValueChange={(value: string) =>
                             setValidateurFormData({
                               ...validateurFormData,
-                              userId: undefined,
-                              posteId: undefined,
-                            });
-                          }}
+                              userId: parseInt(value),
+                            })
+                          }
                         >
-                          <SelectTrigger>
-                            <SelectValue />
+                          <SelectTrigger
+                            className={
+                              errors.userId ? "border-destructive" : ""
+                            }
+                          >
+                            <SelectValue placeholder="Sélectionner un utilisateur" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="user">
-                              Utilisateur spécifique
-                            </SelectItem>
-                            <SelectItem value="poste">Par poste</SelectItem>
+                            {users.map((user) => (
+                              <SelectItem
+                                key={user.id}
+                                value={user.id.toString()}
+                              >
+                                {user.lastName} {user.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
+                        {errors.userId && (
+                          <p className="text-destructive text-sm">
+                            {errors.userId}
+                          </p>
+                        )}
                       </div>
-
-                      {validateurType === "user" ? (
-                        <div className="space-y-2">
-                          <Label htmlFor="user">Utilisateur *</Label>
-                          <Select
-                            value={validateurFormData.userId?.toString()}
-                            onValueChange={(value: string) =>
-                              setValidateurFormData({
-                                ...validateurFormData,
-                                userId: parseInt(value),
-                              })
-                            }
-                          >
-                            <SelectTrigger
-                              className={
-                                errors.userId ? "border-destructive" : ""
-                              }
-                            >
-                              <SelectValue placeholder="Sélectionner un utilisateur" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {users.map((user) => (
-                                <SelectItem
-                                  key={user.id}
-                                  value={user.id.toString()}
-                                >
-                                  {user.lastName} {user.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {errors.userId && (
-                            <p className="text-destructive text-sm">
-                              {errors.userId}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Label htmlFor="poste">Poste *</Label>
-                          <Select
-                            value={validateurFormData.posteId?.toString()}
-                            onValueChange={(value: string) =>
-                              setValidateurFormData({
-                                ...validateurFormData,
-                                posteId: parseInt(value),
-                              })
-                            }
-                          >
-                            <SelectTrigger
-                              className={
-                                errors.posteId ? "border-destructive" : ""
-                              }
-                            >
-                              <SelectValue placeholder="Sélectionner un poste" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {postes.map((poste) => (
-                                <SelectItem
-                                  key={poste.id}
-                                  value={poste.id.toString()}
-                                >
-                                  {poste.libelle}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {errors.posteId && (
-                            <p className="text-destructive text-sm">
-                              {errors.posteId}
-                            </p>
-                          )}
-                        </div>
-                      )}
 
                       <div className="flex justify-end gap-2">
                         <Button
@@ -498,7 +412,7 @@ export const WorkflowsPage = () => {
                     .sort((a, b) => a.ordre - b.ordre)
                     .map((validateur) => (
                       <div
-                        key={validateur.id}
+                        key={validateur.reference}
                         className="flex items-center justify-between p-4 border rounded-lg bg-card"
                       >
                         <div className="flex items-center gap-4">
@@ -507,19 +421,34 @@ export const WorkflowsPage = () => {
                           </Badge>
                           <div>
                             <p>
-                              {validateur.user
-                                ? `${validateur.user.lastName} ${validateur.user.name}`
-                                : validateur.poste?.libelle}
+                              {validateur.user?.lastName}{" "}
+                              {validateur.user?.name}
                             </p>
-                            <p className="text-muted-foreground text-sm">
-                              {validateur.user ? "Utilisateur" : "Poste"}
-                            </p>
+                            {validateur.user?.subdivision && (
+                              <p className="text-muted-foreground text-xs mt-1">
+                                🏛️ {validateur.user.subdivision.libelle}
+                                {validateur.user.subdivision
+                                  .typeSubdivision && (
+                                  <span>
+                                    {" "}
+                                    (
+                                    {
+                                      validateur.user.subdivision
+                                        .typeSubdivision.libelle
+                                    }
+                                    )
+                                  </span>
+                                )}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteValidateur(validateur.id)}
+                          onClick={() =>
+                            handleDeleteValidateur(validateur.reference)
+                          }
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>

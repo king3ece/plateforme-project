@@ -64,23 +64,71 @@ public class DemandeAchatService implements DemandeAchatInterface {
 
         demandeDachat.setEmetteur(emetteur.get());
         demandeDachat.setTypeProcessus(typeProcessus.get());
-        demandeDachat.setPrixTotal(calculerTotal(demandeDachat.getLignes()));
+        // Le prixTotal, prixTotalEffectif, TVA et TTC sont calculés automatiquement par @PrePersist
 
         List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode(PROCESS_CODE);
         if (validateurList.isEmpty()) {
             throw new ObjectNotValidException("Aucun validateur configuré pour DDA");
         }
 
-        demandeDachat.setValidateurSuivant(validateurList.getFirst());
+        Validateur premierValidateur = validateurList.getFirst();
         demandeDachat.setDateEmission(LocalDateTime.now());
 
-        DemandeDachat saved = demandeRepo.save(demandeDachat);
+        DemandeDachat saved;
+
+        // Sauvegarder d'abord la demande pour avoir un ID
+        demandeDachat.setValidateurSuivant(premierValidateur);
+        saved = demandeRepo.save(demandeDachat);
+
+        // Sauvegarder les lignes
         for (LigneDemandeAchat ligne : demandeDachat.getLignes()) {
             ligne.setDemandeDachat(saved);
             ligneRepo.save(ligne);
         }
 
-        emailService.sendMailNewFdm(saved.getValidateurSuivant().getUser().getEmail(), saved.getId().toString(), emetteur.get().getEmail());
+        // Auto-validation si l'émetteur est le premier validateur
+        if (premierValidateur.getUser().getId().equals(emetteur.get().getId())) {
+            // Créer un traitement auto-validé
+            TraitementDemandeDachat autoTraitement = new TraitementDemandeDachat();
+            autoTraitement.setDemandeDachat(saved);
+            autoTraitement.setTraiteur(emetteur.get());
+            autoTraitement.setDecision(Choix_decisions.VALIDER);
+            autoTraitement.setCommentaire("Auto-validation (émetteur = premier validateur)");
+            autoTraitement.setDateTraitement(LocalDateTime.now());
+            traitementRepo.save(autoTraitement);
+
+            saved.setTraitementPrecedent(autoTraitement);
+
+            // Passer au validateur suivant
+            Optional<Validateur> nextValidateur = validateurList.stream()
+                    .filter(v -> v.getOrdre() > premierValidateur.getOrdre())
+                    .min((v1, v2) -> Integer.compare(v1.getOrdre(), v2.getOrdre()));
+
+            if (nextValidateur.isPresent()) {
+                saved.setValidateurSuivant(nextValidateur.get());
+                demandeRepo.save(saved);
+                emailService.sendMailNewFdm(
+                        nextValidateur.get().getUser().getEmail(),
+                        saved.getId().toString(),
+                        emetteur.get().getEmail()
+                );
+            } else {
+                // Pas de validateur suivant, demande approuvée
+                saved.setTraite(true);
+                saved.setFavorable(true);
+                saved.setValidateurSuivant(null);
+                demandeRepo.save(saved);
+                emailService.sendMailNewFdm(
+                        emetteur.get().getEmail(),
+                        saved.getId().toString(),
+                        "Votre demande d'achat a été auto-approuvée"
+                );
+            }
+        } else {
+            // Processus normal
+            emailService.sendMailNewFdm(saved.getValidateurSuivant().getUser().getEmail(), saved.getId().toString(), emetteur.get().getEmail());
+        }
+
         return new ResponseConstant().ok(saved);
     }
 
@@ -115,8 +163,7 @@ public class DemandeAchatService implements DemandeAchatInterface {
                 ligne.setDemandeDachat(entity);
                 ligneRepo.save(ligne);
             }
-
-            entity.setPrixTotal(calculerTotal(demande.getLignes()));
+            // Le prixTotal, prixTotalEffectif, TVA et TTC sont calculés automatiquement par @PreUpdate
         }
 
         demandeRepo.save(entity);
@@ -278,5 +325,41 @@ public class DemandeAchatService implements DemandeAchatInterface {
 
     private double normalize(Double value) {
         return value == null || value < 0 ? 0d : value;
+    }
+
+    /**
+     * Génère un bon de commande pour une demande d'achat approuvée
+     */
+    public ResponseModel genererBonCommande(Long demandeId) {
+        DemandeDachat demande = demandeRepo.findById(demandeId)
+                .orElseThrow(() -> new ObjectNotValidException("Demande d'achat introuvable"));
+
+        if (!demande.isTraite() || !demande.isFavorable()) {
+            throw new ObjectNotValidException("La demande doit être approuvée pour générer un bon de commande");
+        }
+
+        // TODO: Implémenter la génération PDF du bon de commande avec iText ou autre
+        // Pour l'instant, on marque juste que le bon de commande est généré
+        demande.setFichierBonCommande("bon_commande_" + demande.getId() + "_" + System.currentTimeMillis() + ".pdf");
+        demandeRepo.save(demande);
+
+        return new ResponseConstant().ok("Bon de commande généré avec succès");
+    }
+
+    /**
+     * Confirme qu'une commande a été passée
+     */
+    public ResponseModel confirmerCommande(Long demandeId, boolean commander) {
+        DemandeDachat demande = demandeRepo.findById(demandeId)
+                .orElseThrow(() -> new ObjectNotValidException("Demande d'achat introuvable"));
+
+        if (!demande.isTraite() || !demande.isFavorable()) {
+            throw new ObjectNotValidException("La demande doit être approuvée pour confirmer la commande");
+        }
+
+        demande.setCommander(commander);
+        demandeRepo.save(demande);
+
+        return new ResponseConstant().ok("Statut de commande mis à jour");
     }
 }

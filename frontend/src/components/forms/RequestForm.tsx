@@ -529,6 +529,7 @@ export function RequestPage() {
                     onChange={(e) => addFiles(Array.from(e.target.files || []))}
                     className="hidden"
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    aria-label="Télécharger des pièces jointes"
                   />
                 </div>
 

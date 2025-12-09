@@ -40,5 +40,26 @@ public interface ValidateurRepository  extends JpaRepository<Validateur, Long> {
             nativeQuery = true)
     Optional<Validateur> findPreviousValidator(@Param("processusId") Long processusId, @Param("currentOrdre") Integer currentOrdre);
 
+      List<Validateur> findByTypeProcessusIdAndDeleteFalse(Long typeProcessusId);
+
+    // ✅ Vérifier si un utilisateur est validateur
+    @Query(value = "SELECT CASE WHEN COUNT(*) > 0 THEN true ELSE false END " +
+            "FROM validateurs " +
+            "WHERE is_delete = false AND user_id = :userId",
+            nativeQuery = true)
+    Boolean isUserValidator(@Param("userId") Long userId);
+
+    // ✅ Récupérer tous les rôles de validateur d'un utilisateur
+    @Query(value = "SELECT * FROM validateurs " +
+            "WHERE is_delete = false AND user_id = :userId " +
+            "ORDER BY ordre ASC",
+            nativeQuery = true)
+    List<Validateur> findByUserId(@Param("userId") Long userId);
+
+    // ✅ Compter le nombre de rôles de validateur d'un utilisateur
+    @Query(value = "SELECT COUNT(*) FROM validateurs " +
+            "WHERE is_delete = false AND user_id = :userId",
+            nativeQuery = true)
+    Integer countByUserId(@Param("userId") Long userId);
 
 }

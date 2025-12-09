@@ -1,11 +1,11 @@
 package tg.idstechnologie.plateforme.models.base;
 
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.PrePersist;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -21,18 +21,16 @@ import java.util.UUID;
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {
 
-    // Cette classe contient les attributs de base d'une classe
-
     @Column(nullable = false, unique = true, name = "reference")
     private String reference = UUID.randomUUID().toString();
 
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @Column(nullable = false,name = "is_delete")
+    @Column(nullable = false, name = "is_delete")
     private Boolean delete = false;
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
     @CreatedDate
-    @Column(nullable = false,updatable = false,name = "create_date")
+    @Column(nullable = false, updatable = false, name = "create_date")
     private LocalDateTime createDate;
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
@@ -40,13 +38,23 @@ public abstract class BaseEntity {
     @Column(insertable = false, name = "last_modified")
     private LocalDateTime lastModified;
 
+    // ✅ FIX : Rendre createdBy nullable (nullable=true par défaut)
     @CreatedBy
-    @Column(nullable = false,updatable = false, name = "create_by")
+    @Column(name = "create_by")
     private Long createdBy;
 
+    // ✅ FIX : Rendre lastModifiedBy nullable
     @LastModifiedBy
-    @Column(insertable = false, name = "last_modified_by")
+    @Column(name = "last_modified_by")
     private Long lastModifiedBy;
 
+    @PrePersist
+    public void prePersist() {
+        if (reference == null) {
+            reference = UUID.randomUUID().toString();
+        }
+        if (delete == null) {
+            delete = false;
+        }
+    }
 }
-

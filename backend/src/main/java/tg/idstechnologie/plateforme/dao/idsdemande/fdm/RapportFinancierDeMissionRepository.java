@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import tg.idstechnologie.plateforme.models.idsdemande.fdm.RapportFinancierDeMission;
+import tg.idstechnologie.plateforme.utils.Choix_decisions;
+import tg.idstechnologie.plateforme.secu.user.User;
 
 import java.util.Optional;
 
@@ -36,4 +38,11 @@ public interface RapportFinancierDeMissionRepository extends JpaRepository<Rappo
                     "WHERE rfm.is_delete = false AND rfm.traite = false AND v.user_id = :userId",
             nativeQuery = true)
     Page<RapportFinancierDeMission> findPendingValidationsByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    // Statistics methods
+    long countByEmetteurAndDeleteFalse(User emetteur);
+
+    long countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(User emetteur);
+
+    long countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(User emetteur, Choix_decisions decision);
 }

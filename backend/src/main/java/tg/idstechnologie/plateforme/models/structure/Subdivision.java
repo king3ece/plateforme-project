@@ -28,7 +28,7 @@ public class Subdivision extends BaseEntity {
     @Column(nullable = false)
     private String libelle;
 
-    @OneToMany(mappedBy = "subdivision")
+    @OneToMany(mappedBy = "subdivision", fetch = FetchType.LAZY)
     @JsonIgnore
     private List<User> users;
 

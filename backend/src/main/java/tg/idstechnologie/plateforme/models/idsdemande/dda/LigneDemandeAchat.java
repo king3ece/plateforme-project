@@ -65,4 +65,19 @@ public class LigneDemandeAchat {
 
     @Column(name = "quantite", nullable = false)
     private Integer quantite;
+
+    @Column(name = "prix_total")
+    private Double prixTotal;
+
+    /**
+     * Calcule automatiquement le prix total de la ligne avant persist/update
+     * prixTotal = prixUnitaire * quantite
+     */
+    @PrePersist
+    @PreUpdate
+    public void calculerPrixTotal() {
+        double pu = this.prixUnitaire != null ? this.prixUnitaire : 0d;
+        int qty = this.quantite != null ? this.quantite : 0;
+        this.prixTotal = pu * qty;
+    }
 }

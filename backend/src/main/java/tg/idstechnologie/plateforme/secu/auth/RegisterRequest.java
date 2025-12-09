@@ -10,8 +10,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class RegisterRequest {
-    private String email;
-    private String password;
     private String name;
     private String lastName;
+    private String email;
+    private String password;
+    // ✅ NOUVEAU : Champ pour assigner un poste lors de l'inscription
+    private String posteRef;
 }

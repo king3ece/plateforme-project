@@ -4,8 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 import tg.idstechnologie.plateforme.interfaces.structure.PosteInterface;
 import tg.idstechnologie.plateforme.models.structure.Poste;
 import tg.idstechnologie.plateforme.response.ResponseModel;
@@ -89,14 +89,14 @@ public class PosteController {
     }
     
     @PostMapping("/add-poste")
-   // @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseModel> postEntity(@RequestBody Poste poste) {
         System.out.println("poste: " + poste);
         return ResponseEntity.ok(posteInterface.createEntity(poste));
     }
 
     @PutMapping()
-    //@PreAuthorize("hasAuthority('ADMIN')") commenté pour non compréhension du fonctionnement et blocage de la création de poste erreur (403) gérer l'autorité dans le front en attendant
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseModel> putEntity(@RequestBody Poste poste) {
         return ResponseEntity.ok(posteInterface.updateEntity(poste));
     }

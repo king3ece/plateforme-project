@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import tg.idstechnologie.plateforme.dao.user.TokenRepository;
 import tg.idstechnologie.plateforme.dao.user.UserRepository;
+import tg.idstechnologie.plateforme.dao.structure.PosteRepository;
 import tg.idstechnologie.plateforme.exceptions.ObjectNotValidException;
 import tg.idstechnologie.plateforme.response.ResponseConstant;
 import tg.idstechnologie.plateforme.response.ResponseModel;
@@ -17,6 +18,7 @@ import tg.idstechnologie.plateforme.secu.user.Role;
 import tg.idstechnologie.plateforme.secu.user.User;
 import tg.idstechnologie.plateforme.services.user.CurrentUserService;
 import tg.idstechnologie.plateforme.mail.EmailService;
+import tg.idstechnologie.plateforme.models.structure.Poste;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -27,6 +29,7 @@ import java.util.UUID;
 public class AuthenticationService {
     private final UserRepository repository;
     private final TokenRepository tokenRepository;
+    private final PosteRepository posteRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -63,11 +66,35 @@ public class AuthenticationService {
         // Générer le token d'activation
         String activationToken = UUID.randomUUID().toString();
 
+        // ✅ FIX : Récupérer l'ID du user actuellement connecté (ou système par défaut)
+        Long createdById = null;
+        try {
+            // Si un utilisateur est connecté, utiliser son ID
+            String currentUserRef = currentUserService.getCurrentUserRef();
+            Optional<User> currentUser = repository.findByReference(currentUserRef);
+            if (currentUser.isPresent()) {
+                createdById = currentUser.get().getId();
+            }
+        } catch (Exception e) {
+            // Pas d'utilisateur connecté, on va chercher le user système
+            System.out.println("Aucun utilisateur connecté pour l'audit");
+        }
+
+        // Si pas d'utilisateur connecté, utiliser l'ID du user système
+        if (createdById == null) {
+            Optional<User> systemUser = repository.findByEmail("system@idstechnologie.com");
+            if (systemUser.isPresent()) {
+                createdById = systemUser.get().getId();
+            } else {
+                // Si pas de user système, utiliser un ID par défaut (1)
+                createdById = 1L;
+            }
+        }
+
         // Créer l'utilisateur
         User user = User.builder()
                 .name(request.getName())
                 .lastName(request.getLastName())
-                .reference(UUID.randomUUID().toString())
                 .email(request.getEmail())
                 .enable(false) // Compte désactivé par défaut
                 .delete(false)
@@ -76,6 +103,15 @@ public class AuthenticationService {
                 .activationToken(activationToken)
                 .activationTokenExpiry(LocalDateTime.now().plusHours(24))
                 .build();
+
+        // ✅ FIX : Remplir createdBy avec le setter (pas le builder car c'est un field hérité)
+        user.setCreatedBy(createdById);
+
+        // ✅ FIX : Assigner le poste s'il est fourni
+        if (request.getPosteRef() != null && !request.getPosteRef().isBlank()) {
+            Optional<Poste> poste = posteRepository.findByReference(request.getPosteRef());
+            poste.ifPresent(user::setPoste);
+        }
 
         User savedUser = repository.save(user);
 

@@ -52,11 +52,8 @@ public class UserService implements UserInterface {
         // encode password before saving
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        // handle poste association if provided by reference
-        if (user.getPoste() != null && user.getPoste().getReference() != null) {
-            Optional<Poste> p = posteRepository.findByReference(user.getPoste().getReference());
-            p.ifPresent(user::setPoste);
-        }
+        // ✅ FIX : Gérer à la fois poste (object) et posteRef (string)
+        handlePosteAssignment(user);
 
         repository.save(user);
         return new ResponseConstant().ok("Action effectuée avec succes");
@@ -77,13 +74,13 @@ public class UserService implements UserInterface {
                 u.setPassword(passwordEncoder.encode(user.getPassword()));
             }
 
-            // role
+            // ✅ FIX : Mettre à jour le role (ajouté)
             u.setRoles(user.getRoles() != null ? user.getRoles() : u.getRoles());
 
-            // poste update: accept poste reference
-            if (user.getPoste() != null && user.getPoste().getReference() != null) {
-                Optional<Poste> p = posteRepository.findByReference(user.getPoste().getReference());
-                p.ifPresent(u::setPoste);
+            // ✅ FIX : Gérer poste update avec la nouvelle approche
+            handlePosteAssignment(user);
+            if (user.getPoste() != null) {
+                u.setPoste(user.getPoste());
             }
 
             repository.save(u);
@@ -92,12 +89,52 @@ public class UserService implements UserInterface {
         return new ResponseConstant().noContent("Aucune correspondance trouvé");
     }
 
+    /**
+     * ✅ NOUVEAU : Méthode helper pour gérer l'assignation du poste
+     * 
+     * Cette méthode gère les deux cas :
+     * 1. Frontend envoie un objet Poste avec reference : { poste: { reference: "abc-123" } }
+     * 2. Frontend envoie juste posteRef : { posteRef: "abc-123" }
+     * 
+     * @param user L'utilisateur à mettre à jour
+     */
+    private void handlePosteAssignment(User user) {
+        if (user == null) {
+            return;
+        }
+
+        // Cas 1 : Poste est un objet avec reference
+        if (user.getPoste() != null && user.getPoste().getReference() != null && !user.getPoste().getReference().isBlank()) {
+            Optional<Poste> p = posteRepository.findByReference(user.getPoste().getReference());
+            if (p.isPresent()) {
+                user.setPoste(p.get());
+            } else {
+                // Reference invalide, ne pas assigner
+                user.setPoste(null);
+            }
+            return;
+        }
+
+        // Cas 2 : Utiliser posteRef si disponible
+        String posteRef = user.getPosteRef();
+        if (posteRef != null && !posteRef.isBlank()) {
+            Optional<Poste> p = posteRepository.findByReference(posteRef);
+            if (p.isPresent()) {
+                user.setPoste(p.get());
+            } else {
+                user.setPoste(null);
+            }
+        } else {
+            // Pas de poste spécifié ou null
+            user.setPoste(null);
+        }
+    }
+
     @Override
     public ResponseModel getAllEntityNotDeleted(Pageable pageable) {
         Page<User> users = repository.handleAllEntity(pageable);
-        //System.out.println(users.toString());
         return new ResponseConstant().ok(users);
-    };
+    }
 
     @Override
     public ResponseModel getOneEntityNotDeleted(String ref) {
@@ -119,5 +156,4 @@ public class UserService implements UserInterface {
         }
         return new ResponseConstant().noContent("Aucune correspondance trouvé");
     }
-
 }

@@ -106,15 +106,33 @@ export function DemandeAchatForm({
             </Alert>
           )}
 
+          {/* Error Summary */}
+          {Object.keys(errors).length > 0 && (
+            <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded">
+              <h4 className="font-semibold text-red-700 mb-2">
+                Erreurs trouvées:
+              </h4>
+              <ul className="list-disc list-inside space-y-1">
+                {Object.entries(errors).map(([field, error]) => (
+                  <li key={field} className="text-sm text-red-600">
+                    {error?.message || `${field} est requis`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Informations générales */}
           {[
-            { name: "destination", label: "Destination de l'achat *" },
-            { name: "fournisseur", label: "Fournisseur proposé *" },
-            { name: "service", label: "Service bénéficiaire *" },
-            { name: "client", label: "Nom du client *" },
+            { name: "destination", label: "Destination de l'achat" },
+            { name: "fournisseur", label: "Fournisseur proposé" },
+            { name: "service", label: "Service bénéficiaire" },
+            { name: "client", label: "Nom du client" },
           ].map(({ name, label }) => (
             <div key={name}>
-              <Label htmlFor={name}>{label}</Label>
+              <Label htmlFor={name}>
+                <span className="text-red-600">*</span> {label}
+              </Label>
               <Controller
                 name={name as keyof DemandeAchatData}
                 control={control}
@@ -122,7 +140,10 @@ export function DemandeAchatForm({
                 render={({ field }) => <Input {...field} id={name} />}
               />
               {errors[name as keyof DemandeAchatData] && (
-                <p className="text-sm text-red-600 mt-1">Champ requis</p>
+                <p className="text-sm text-red-600 mt-1">
+                  {errors[name as keyof DemandeAchatData]?.message ||
+                    "Champ requis"}
+                </p>
               )}
             </div>
           ))}

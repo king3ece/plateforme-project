@@ -26,4 +26,5 @@ public class TraitementFicheDescriptiveMission extends BaseTraitement {
     @ManyToOne
     @JoinColumn(name = "traiteur_id", nullable = true)
     private User traiteur;
+
 }

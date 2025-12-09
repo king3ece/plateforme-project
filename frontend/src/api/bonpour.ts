@@ -5,64 +5,28 @@ import {
   UpdateBonPourRequest,
   TraitementBonPour
 } from "../types/BonPour";
-
-interface ApiResponse<T> {
-  code: number;
-  message: string;
-  object: T;
-}
-
-interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  pageable: any;
-  last: boolean;
-  first: boolean;
-  numberOfElements: number;
-  empty: boolean;
-}
+import { ApiResponse, PaginatedResponse, Decision, TraitementRequest } from "../types/api";
 
 export const BonPourAPI = {
   getAll: async (page = 0, size = 30): Promise<BonPour[]> => {
-    try {
-      const response = await axiosInstance.get<
-        ApiResponse<PaginatedResponse<BonPour>>
-      >(`/bonpours/not-deleted?page=${page}&size=${size}`);
-      console.log(" Response complète BonPour:", response.data);
-      console.log(" BonPour récupérés:", response.data.object.content);
-
-      return response.data.object.content;
-    } catch (error) {
-      console.error("L Error fetching BonPour:", error);
-      throw error;
-    }
+    const response = await axiosInstance.get<
+      ApiResponse<PaginatedResponse<BonPour>>
+    >(`/bonpours/not-deleted?page=${page}&size=${size}`);
+    return response.data.object.content;
   },
 
   getMyRequests: async (page = 0, size = 30): Promise<BonPour[]> => {
-    try {
-      const response = await axiosInstance.get<
-        ApiResponse<PaginatedResponse<BonPour>>
-      >(`/bonpours/my-requests?page=${page}&size=${size}`);
-      return response.data.object.content;
-    } catch (error) {
-      console.error("Error fetching my bon pour requests:", error);
-      throw error;
-    }
+    const response = await axiosInstance.get<
+      ApiResponse<PaginatedResponse<BonPour>>
+    >(`/bonpours/my-requests?page=${page}&size=${size}`);
+    return response.data.object.content;
   },
 
   getPendingValidations: async (page = 0, size = 30): Promise<BonPour[]> => {
-    try {
-      const response = await axiosInstance.get<
-        ApiResponse<PaginatedResponse<BonPour>>
-      >(`/bonpours/pending-validations?page=${page}&size=${size}`);
-      return response.data.object.content;
-    } catch (error) {
-      console.error("Error fetching pending bon pour validations:", error);
-      throw error;
-    }
+    const response = await axiosInstance.get<
+      ApiResponse<PaginatedResponse<BonPour>>
+    >(`/bonpours/pending-validations?page=${page}&size=${size}`);
+    return response.data.object.content;
   },
 
   getById: async (id: number): Promise<BonPour> => {
@@ -97,7 +61,7 @@ export const BonPourAPI = {
 
   traiter: async (
     id: number,
-    data: { decision: 'VALIDER' | 'REJETER' | 'A_CORRIGER'; commentaire?: string }
+    data: TraitementRequest
   ): Promise<void> => {
     await axiosInstance.post<ApiResponse<string>>(
       `/bonpours/${id}/traiter`,

@@ -69,4 +69,23 @@ public class DemandeAchatController {
                 demandeAchatInterface.traiter(id, request.getDecision(), request.getCommentaire())
         );
     }
+
+    @PostMapping("/{id}/generer-bon-commande")
+    public ResponseEntity<ResponseModel> genererBonCommande(@PathVariable Long id) {
+        if (demandeAchatInterface instanceof tg.idstechnologie.plateforme.services.idsdemande.dda.DemandeAchatService service) {
+            return ResponseEntity.ok(service.genererBonCommande(id));
+        }
+        throw new RuntimeException("Service non disponible");
+    }
+
+    @PostMapping("/{id}/confirmer-commande")
+    public ResponseEntity<ResponseModel> confirmerCommande(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, Boolean> body) {
+        boolean commander = body.getOrDefault("commander", false);
+        if (demandeAchatInterface instanceof tg.idstechnologie.plateforme.services.idsdemande.dda.DemandeAchatService service) {
+            return ResponseEntity.ok(service.confirmerCommande(id, commander));
+        }
+        throw new RuntimeException("Service non disponible");
+    }
 }

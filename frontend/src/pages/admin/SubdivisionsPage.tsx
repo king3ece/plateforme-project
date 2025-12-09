@@ -207,6 +207,7 @@ export const SubdivisionsPage = () => {
                 </Label>
                 <select
                   id="typeSubdivisionReference"
+                  aria-label="Type de subdivision"
                   value={formData.typeSubdivisionReference}
                   onChange={(e) =>
                     setFormData({
@@ -281,7 +282,20 @@ export const SubdivisionsPage = () => {
                   <TableCell>{subdivision.code}</TableCell>
                   <TableCell>{subdivision.libelle}</TableCell>
                   <TableCell>
-                    {subdivision.typeSubdivision?.libelle || "-"}
+                    <div className="text-sm">
+                      {subdivision.typeSubdivision ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium text-blue-600">
+                            {subdivision.typeSubdivision.libelle}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            ({subdivision.typeSubdivision.code})
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
