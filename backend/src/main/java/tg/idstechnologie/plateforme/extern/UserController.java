@@ -69,7 +69,6 @@ public class UserController {
     @PutMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ResponseModel> putEntity(@RequestBody User user, Principal connectedUser) {
-        System.out.println("🔍 UPDATE USER - Utilisateur connecté: " + connectedUser.getName());
         return ResponseEntity.ok(userInterface.updateEntity(user));
     }
 

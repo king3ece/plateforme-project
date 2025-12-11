@@ -11,6 +11,7 @@
 ✅ **Projet maintenant fonctionnel** - Tous les problèmes critiques de compilation ont été corrigés.
 
 ### Résultats des corrections
+
 - ✅ **Backend**: Compile avec succès (Maven build réussi)
 - ✅ **Frontend**: Build avec succès (Vite build réussi)
 - ✅ 8 fichiers supprimés (doublons et stubs vides)
@@ -22,11 +23,13 @@
 ## 1. PROBLÈMES CRITIQUES CORRIGÉS
 
 ### ✅ 1.1 Erreur de compilation ApplicationConfig.java
+
 **Problème:** Commentaire multiligne non fermé
 **Localisation:** `backend/src/main/java/tg/idstechnologie/plateforme/secu/config/ApplicationConfig.java:64`
 **Solution:** Nettoyé et activé la configuration CORS correctement
 
 **Avant:**
+
 ```java
 /*@Bean
 UrlBasedCorsConfigurationSource corsConfigurationSource() {
@@ -37,6 +40,7 @@ CorsConfigurationSource corsConfigurationSource() {
 ```
 
 **Après:**
+
 ```java
 @Bean
 CorsConfigurationSource corsConfigurationSource() {
@@ -50,11 +54,13 @@ CorsConfigurationSource corsConfigurationSource() {
 ---
 
 ### ✅ 1.2 Conflit de version Java
+
 **Problème:** pom.xml spécifie Java 21 mais compiler configuré pour Java 8
 **Localisation:** `backend/pom.xml:127`
 **Solution:** Supprimé `<source>8</source><target>8</target>` du plugin compiler
 
 **Avant:**
+
 ```xml
 <configuration>
     <annotationProcessorPaths>...</annotationProcessorPaths>
@@ -63,6 +69,7 @@ CorsConfigurationSource corsConfigurationSource() {
 ```
 
 **Après:**
+
 ```xml
 <configuration>
     <annotationProcessorPaths>...</annotationProcessorPaths>
@@ -72,7 +79,9 @@ CorsConfigurationSource corsConfigurationSource() {
 ---
 
 ### ✅ 1.3 Fichiers en doublon supprimés
+
 **Fichiers supprimés:**
+
 1. `backend/src/main/java/tg/idstechnologie/plateforme/interfaces/idsdemande/dda/BonPourInterface.java` (stub vide)
 2. `backend/src/main/java/tg/idstechnologie/plateforme/controller/idsdemande/dda/BonPourController.java` (stub vide)
 3. `backend/src/main/java/tg/idstechnologie/plateforme/dao/idsdemande/dda/BonPourRepository.java` (stub vide)
@@ -85,12 +94,15 @@ CorsConfigurationSource corsConfigurationSource() {
 ---
 
 ### ✅ 1.4 Imports corrigés dans le frontend
+
 **Fichiers modifiés:**
+
 - `frontend/src/pages/user/ValidationPage.tsx:31`
 - `frontend/src/pages/user/RequestPage.tsx:28`
 - `frontend/src/pages/user/DemandesPage.tsx:25`
 
 **Changement:**
+
 ```typescript
 // Avant (erreur de build)
 import { DemandeAchatAPI } from "../../api/dda";
@@ -104,15 +116,18 @@ import { DemandeAchatAPI } from "../../api/demandeAchat";
 ## 2. AMÉLIORATIONS DE SÉCURITÉ
 
 ### ✅ 2.1 Configuration CORS sécurisée
+
 **Fichier:** `backend/src/main/java/tg/idstechnologie/plateforme/secu/config/WebConfig.java`
 
 **Avant:**
+
 ```java
 .allowedMethods("*")      // ⚠️ DANGER: Tous les HTTP methods
 .allowedHeaders("*")      // ⚠️ DANGER: Tous les headers
 ```
 
 **Après:**
+
 ```java
 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
 .allowedHeaders("Content-Type", "Authorization", "Accept", "Cache-Control")
@@ -121,9 +136,11 @@ import { DemandeAchatAPI } from "../../api/demandeAchat";
 ---
 
 ### ✅ 2.2 Template de configuration sécurisée
+
 **Fichier créé:** `backend/.env.example`
 
 **Contenu:**
+
 ```properties
 # Configuration de la base de données
 DATABASE_URL=jdbc:postgresql://localhost:5432/plateforme_ids
@@ -148,9 +165,11 @@ JWT_EXPIRATION=86400000
 ## 3. AMÉLIORATIONS D'ARCHITECTURE
 
 ### ✅ 3.1 Types API communs frontend
+
 **Fichier créé:** `frontend/src/types/api.ts`
 
 **Contenu:**
+
 ```typescript
 export interface ApiResponse<T> {
   code: number;
@@ -171,7 +190,7 @@ export interface PaginatedResponse<T> {
   empty: boolean;
 }
 
-export type Decision = 'VALIDER' | 'REJETER' | 'A_CORRIGER';
+export type Decision = "VALIDER" | "REJETER" | "A_CORRIGER";
 
 export interface TraitementRequest {
   decision: Decision;
@@ -180,6 +199,7 @@ export interface TraitementRequest {
 ```
 
 **Bénéfices:**
+
 - Élimine la duplication d'interfaces dans chaque fichier API
 - Type-safety améliorée
 - Maintenance simplifiée
@@ -187,24 +207,32 @@ export interface TraitementRequest {
 ---
 
 ### ✅ 3.2 Fichier bonpour.ts réécrit (encodage UTF-8)
+
 **Fichier:** `frontend/src/api/bonpour.ts`
 
 **Problèmes corrigés:**
+
 - Caractères corrompus (� au lieu de é/è)
 - Console.log supprimés
 - Import des types communs depuis `api.ts`
 - Code nettoyé et simplifié
 
 **Avant:**
+
 ```typescript
 console.log(" Response compl�te BonPour:", response.data);
 console.log(" BonPour r�cup�r�s:", response.data.object.content);
 ```
 
 **Après:**
+
 ```typescript
 // Logs supprimés, utilisation des types communs
-import { ApiResponse, PaginatedResponse, TraitementRequest } from "../types/api";
+import {
+  ApiResponse,
+  PaginatedResponse,
+  TraitementRequest,
+} from "../types/api";
 ```
 
 ---
@@ -212,6 +240,7 @@ import { ApiResponse, PaginatedResponse, TraitementRequest } from "../types/api"
 ## 4. ÉTAT ACTUEL DU PROJET
 
 ### ✅ Backend (Spring Boot)
+
 ```bash
 [INFO] BUILD SUCCESS
 [INFO] Total time: 27.781 s
@@ -219,6 +248,7 @@ import { ApiResponse, PaginatedResponse, TraitementRequest } from "../types/api"
 ```
 
 **Avertissements mineurs (non bloquants):**
+
 - `@Builder` ignorera les expressions d'initialisation (User.java, Token.java)
 - `frameOptions()` deprecated dans SecurityConfiguration
 - Ces warnings n'empêchent pas le fonctionnement
@@ -226,6 +256,7 @@ import { ApiResponse, PaginatedResponse, TraitementRequest } from "../types/api"
 ---
 
 ### ✅ Frontend (React + Vite)
+
 ```bash
 ✓ built in 15.14s
 build/index.html                   0.46 kB
@@ -234,6 +265,7 @@ build/assets/index-Kps1u8O8.js   530.36 kB
 ```
 
 **Avertissement (non bloquant):**
+
 - Bundle size > 500 kB - recommandation de code splitting
 - N'empêche pas le fonctionnement
 
@@ -242,6 +274,7 @@ build/assets/index-Kps1u8O8.js   530.36 kB
 ## 5. ARCHITECTURE DU PROJET
 
 ### Backend Structure
+
 ```
 backend/
 ├── src/main/java/tg/idstechnologie/plateforme/
@@ -269,6 +302,7 @@ backend/
 ```
 
 ### Frontend Structure
+
 ```
 frontend/
 ├── src/
@@ -303,15 +337,18 @@ frontend/
 ### 🟡 Haute priorité (à corriger bientôt)
 
 1. **Credentials exposées**
+
    - Fichier: `backend/src/main/resources/application.properties:31-36`
    - Solution: Déplacer vers `.env` et ajouter `.env` au `.gitignore`
 
 2. **Base H2 en mémoire**
+
    - Fichier: `backend/src/main/resources/application.properties:51-58`
    - Problème: Données perdues au redémarrage
    - Solution: Utiliser PostgreSQL en production
 
 3. **GlobalExceptionHandler incomplet**
+
    - Fichier: `backend/src/main/java/tg/idstechnologie/plateforme/handler/GlobalExceptionHandler.java`
    - Manquent: NullPointerException, IllegalArgumentException, ValidationException
 
@@ -322,14 +359,17 @@ frontend/
 ### 🟢 Moyenne priorité (optimisations)
 
 5. **N+1 Queries**
+
    - Repositories sans `JOIN FETCH`
    - Impact: Performance dégradée
 
 6. **Validation manuelle redondante**
+
    - Services: FDM, DDA, BonPour
    - Solution: Utiliser annotations `@NotNull`, `@NotBlank`
 
 7. **Enum `Choix_decisions` avec underscore**
+
    - Convention Java: camelCase
    - Renommer en `ChoixDecisions`
 
@@ -349,6 +389,7 @@ frontend/
 ## 7. TESTS ET VALIDATION
 
 ### Backend
+
 ```bash
 cd backend
 ./mvnw clean package -DskipTests
@@ -356,6 +397,7 @@ cd backend
 ```
 
 ### Frontend
+
 ```bash
 cd frontend
 npm run build
@@ -363,11 +405,12 @@ npm run build
 ```
 
 ### Démarrage local
+
 ```bash
 # Backend
 cd backend
 ./mvnw spring-boot:run
-# Démarre sur http://localhost:9090
+# Démarre sur http://localhost:9091
 
 # Frontend
 cd frontend
@@ -380,6 +423,7 @@ npm run dev
 ## 8. RECOMMANDATIONS IMMÉDIATES
 
 ### 🔴 Critique (à faire MAINTENANT)
+
 1. ✅ ~~Corriger erreurs de compilation~~ (FAIT)
 2. ✅ ~~Supprimer doublons~~ (FAIT)
 3. ⚠️ **Déplacer credentials vers .env** (TODO)
@@ -387,12 +431,14 @@ npm run dev
 5. ⚠️ **Changer les mots de passe exposés** (TODO)
 
 ### 🟡 Important (cette semaine)
+
 6. Implémenter GlobalExceptionHandler complet
 7. Configurer PostgreSQL pour production
 8. Ajouter validation des fichiers uploadés
 9. Nettoyer console.log du frontend
 
 ### 🟢 Amélioration (prochaines 2 semaines)
+
 10. Optimiser requêtes avec JOIN FETCH
 11. Remplacer validations manuelles par annotations
 12. Implémenter logger structuré
@@ -403,6 +449,7 @@ npm run dev
 ## 9. FICHIERS MODIFIÉS/CRÉÉS
 
 ### Fichiers supprimés (8)
+
 1. `backend/.../dda/BonPourInterface.java`
 2. `backend/.../dda/BonPourController.java`
 3. `backend/.../dda/BonPourRepository.java`
@@ -412,10 +459,12 @@ npm run dev
 7. Divers fichiers de cache Vite
 
 ### Fichiers créés (2)
+
 1. `backend/.env.example`
 2. `frontend/src/types/api.ts`
 
 ### Fichiers modifiés (9)
+
 1. `backend/pom.xml`
 2. `backend/.../ApplicationConfig.java`
 3. `backend/.../WebConfig.java`
@@ -430,6 +479,7 @@ npm run dev
 ## 10. COMMANDES UTILES
 
 ### Backend
+
 ```bash
 # Compilation
 ./mvnw clean compile
@@ -445,6 +495,7 @@ npm run dev
 ```
 
 ### Frontend
+
 ```bash
 # Installation dépendances
 npm install
@@ -464,12 +515,14 @@ npm run test
 ## 11. CONFIGURATION RECOMMANDÉE
 
 ### Pour développement local
+
 1. Utiliser H2 (déjà configuré)
-2. Console H2: http://localhost:9090/h2-console
+2. Console H2: http://localhost:9091/h2-console
 3. Frontend: http://localhost:5173
-4. Backend: http://localhost:9090
+4. Backend: http://localhost:9091
 
 ### Pour production
+
 ```properties
 # application-prod.properties
 spring.datasource.url=jdbc:postgresql://db.example.com:5432/plateforme_ids
@@ -484,6 +537,7 @@ spring.h2.console.enabled=false
 ## 12. CONCLUSION
 
 ### ✅ Objectifs atteints
+
 - Projet compile sans erreur
 - Doublons supprimés
 - Architecture améliorée
@@ -491,12 +545,14 @@ spring.h2.console.enabled=false
 - Documentation complète
 
 ### ⚠️ Actions restantes
+
 1. Sécuriser les credentials (URGENT)
 2. Configurer PostgreSQL pour production
 3. Implémenter gestion d'erreurs complète
 4. Optimiser les performances
 
 ### 📊 Qualité globale du code
+
 - **Architecture:** 7/10 (bonne structure, quelques améliorations possibles)
 - **Sécurité:** 5/10 (credentials exposées, validation insuffisante)
 - **Performance:** 6/10 (N+1 queries, bundle size)

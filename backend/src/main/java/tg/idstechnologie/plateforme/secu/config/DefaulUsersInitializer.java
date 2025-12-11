@@ -71,10 +71,6 @@ public class DefaulUsersInitializer implements CommandLineRunner {
             userDefault.setCreatedBy(systemUserId);
             userRepository.save(userDefault);
             
-            System.out.println("✅ Utilisateurs par défaut créés avec succès !");
-            System.out.println("   - System User (ID: " + systemUserId + ")");
-            System.out.println("   - Admin User");
-            System.out.println("   - Default User");
-        }
+            }
     }
 }

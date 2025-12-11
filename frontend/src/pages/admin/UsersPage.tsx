@@ -77,7 +77,6 @@ export const UsersPage = () => {
   const loadUsers = async () => {
     try {
       const data = await usersAPI.getAll();
-      console.log("✅ Utilisateurs chargés:", data);
       setUsers(data);
     } catch (error) {
       console.error("❌ Erreur chargement utilisateurs:", error);
@@ -88,7 +87,6 @@ export const UsersPage = () => {
   const loadPostes = async () => {
     try {
       const data = await postesAPI.getAll();
-      console.log("✅ Postes chargés:", data);
       setPostes(data);
     } catch (error) {
       console.error("❌ Erreur chargement postes:", error);
@@ -131,11 +129,9 @@ export const UsersPage = () => {
         if (formData.password && formData.password.trim() !== "") {
           updateData.password = formData.password;
         }
-        console.log("📤 UPDATE - Données envoyées:", updateData);
         await usersAPI.update(updateData);
         toast.success("✅ Utilisateur modifié avec succès");
       } else {
-        console.log("📤 CREATE - Données envoyées:", formData);
         await usersAPI.create(formData);
         toast.success("✅ Utilisateur créé avec succès");
       }
@@ -154,7 +150,6 @@ export const UsersPage = () => {
 
   // EDITION
   const handleEdit = (user: User) => {
-    console.log("✏️ Édition de l'utilisateur:", user);
     setEditingUser(user);
     setFormData({
       email: user.email,

@@ -14,7 +14,7 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender emailSender;
 
-    @Value("${app.base-url:http://localhost:9090}")
+    @Value("${app.base-url:http://localhost:9091}")
     private String baseUrl;
 
     @Value("${spring.mail.username}")

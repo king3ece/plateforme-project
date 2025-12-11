@@ -2,7 +2,7 @@
 //
 // // Configuration de l'URL de base de l'API
 // // Modifiez cette URL pour pointer vers votre backend Spring Boot
-// const API_BASE_URL = 'http://localhost:9090/api';
+// const API_BASE_URL = 'http://localhost:9091/api';
 //
 // const axiosInstance = axios.create({
 //   baseURL: API_BASE_URL,
@@ -44,7 +44,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:9090/api",
+  baseURL: "http://localhost:9091/api",
   headers: {
     "Content-Type": "application/json",
   },

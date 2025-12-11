@@ -77,7 +77,6 @@ public class AuthenticationService {
             }
         } catch (Exception e) {
             // Pas d'utilisateur connecté, on va chercher le user système
-            System.out.println("Aucun utilisateur connecté pour l'audit");
         }
 
         // Si pas d'utilisateur connecté, utiliser l'ID du user système
@@ -134,7 +133,7 @@ public class AuthenticationService {
      * Authentification d'un utilisateur
      */
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
-        System.out.println(request);
+        
         // Authentifier avec Spring Security
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -151,7 +150,6 @@ public class AuthenticationService {
         }
 
         User user = userOpt.get();
-        System.out.println(user.getEmail());
 
         // Vérifier si le compte est activé
         if(!user.getEnable()) {
@@ -166,7 +164,6 @@ public class AuthenticationService {
         // Générer le token JWT
         var jwtToken = jwtService.generateToken(user);
 
-        System.out.println(jwtToken);
         // Révoquer les anciens tokens
         revokeAllUserTokens(user);
 

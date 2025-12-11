@@ -30,11 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
   const location = useLocation();
   const { logout, isValidator, pendingValidationsCount } = useAuth();
 
-  // 🐛 Debug: Afficher les valeurs dans la console
-  console.log('🔍 Sidebar - isValidator:', isValidator);
-  console.log('🔍 Sidebar - pendingValidationsCount:', pendingValidationsCount);
-  console.log('🔍 Sidebar - userRole:', userRole);
-
+  
   const adminMenuItems: MenuItem[] = [
     { icon: <LayoutDashboard size={20} />, label: 'Tableau de bord', path: '/admin' },
     { icon: <CheckCircle size={20} />, label: 'Validation', path: '/admin/validations' },
@@ -148,7 +144,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
         <button
           onClick={() => {
             // Action à définir - peut naviguer vers une page de paramètres
-            console.log('Paramètres clicked');
             // Exemple: navigate('/settings');
           }}
           className="flex items-center space-x-3 px-4 py-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors"
@@ -161,7 +156,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
         <button
           onClick={() => {
             // Action à définir - peut ouvrir une modale d'aide ou naviguer vers la documentation
-            console.log('Aide clicked');
             // Exemple: setShowHelpModal(true);
           }}
           className="flex items-center space-x-3 px-4 py-3 w-full rounded-lg text-red-600 hover:bg-red-50 transition-colors"

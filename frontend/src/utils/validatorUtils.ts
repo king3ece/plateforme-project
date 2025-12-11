@@ -40,12 +40,9 @@ interface ApiResponse<T> {
  */
 export async function checkIsValidator(): Promise<boolean> {
   try {
-    console.log('🔍 validatorUtils - Appel GET /validateurs/is-validator');
-    const response = await axiosInstance.get<ApiResponse<{ isValidator: boolean }>>('/validateurs/is-validator');
-    console.log('🔍 validatorUtils - Réponse reçue:', response.data);
-    const isValidator = response.data.object.isValidator ?? false;
-    console.log('✅ validatorUtils - isValidator:', isValidator);
-    return isValidator;
+        const response = await axiosInstance.get<ApiResponse<{ isValidator: boolean }>>('/validateurs/is-validator');
+        const isValidator = response.data.object.isValidator ?? false;
+        return isValidator;
   } catch (error) {
     console.error('❌ validatorUtils - Erreur lors de la vérification du validateur:', error);
     return false;

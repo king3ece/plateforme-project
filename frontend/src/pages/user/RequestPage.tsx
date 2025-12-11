@@ -68,7 +68,6 @@ export function RequestPage() {
     files: File[]
   ): Promise<void> => {
     if (!files || files.length === 0) {
-      console.log("✅ Pas de fichiers à uploader");
       return;
     }
 
@@ -88,12 +87,10 @@ export function RequestPage() {
       const endpoint = typeMapping[demandeType];
       const uploadUrl = `/${endpoint}/${reference}/pieces-jointes`;
 
-      console.log(`📤 Uploading ${files.length} fichiers vers ${uploadUrl}`);
-
+      
       // Let axios set the Content-Type (it will include the multipart boundary)
       await axiosInstance.post(uploadUrl, formData);
 
-      console.log("✅ Fichiers uploadés avec succès");
       toast.success("Fichiers uploadés avec succès", {
         description: `${files.length} fichier(s) ajouté(s) à votre demande`,
       });
@@ -163,8 +160,6 @@ export function RequestPage() {
 
       // Appel API via le service
       const result = await FicheDescriptiveMissionAPI.create(fdmData);
-
-      console.log("✅ FDM créée avec succès:", result);
 
       // Defensive check: backend may return null object (wrap issue); abort if missing reference
       if (!result || !result.reference) {
@@ -369,8 +364,6 @@ export function RequestPage() {
 
       // Appel API via le service
       const result = await BonPourAPI.create(bonPourData);
-
-      console.log("✅ Bon pour créé avec succès:", result);
 
       toast.success("Bon pour créé avec succès", {
         description: `Référence: ${result.reference}`,

@@ -31,9 +31,7 @@ export const FicheDescriptiveMissionAPI = {
       const response = await axiosInstance.get<
         ApiResponse<PaginatedResponse<FicheDescriptiveMission>>
       >(`/fdms/not-deleted?page=${page}&size=${size}`);
-      console.log("✅ Response complète FDM:", response.data);
-      console.log("✅ FDM récupérées:", response.data.object.content);
-
+            
       return response.data.object.content;
     } catch (error) {
       console.error("❌ Error fetching FDM:", error);

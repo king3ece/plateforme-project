@@ -31,7 +31,6 @@ public class AuthenticationController {
             @RequestBody AuthenticationRequest request
     )
     {
-         System.out.println("Probleme");
         return ResponseEntity.ok(authenticationService.authenticate(request));
     }
 

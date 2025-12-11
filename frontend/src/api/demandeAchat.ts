@@ -34,9 +34,7 @@ export const DemandeAchatAPI = {
       const response = await axiosInstance.get<
         ApiResponse<PaginatedResponse<DemandeAchat>>
       >(`/ddas/not-deleted?page=${page}&size=${size}`);
-      console.log("✅ Response complète DEAC:", response.data);
-      console.log("✅ DEAC récupérées:", response.data.object.content);
-
+            
       return response.data.object.content;
     } catch (error) {
       console.error("❌ Error fetching DEAC:", error);

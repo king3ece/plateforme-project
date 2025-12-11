@@ -50,7 +50,6 @@ public class PosteService implements PosteInterface {
         }
 
         Optional<Poste> result = posteDao.findByReference(poste.getReference());
-        System.out.println(result.isPresent());
         if(result.isPresent()) {
             Poste poste1 = result.get();
             poste1.setLibelle((!Objects.equals(poste1.getLibelle(), poste.getLibelle()) ? poste.getLibelle() : poste1.getLibelle()));

@@ -10,6 +10,7 @@ import { FDMPage } from "./pages/user/DemandesPage";
 // import { DemandesPage, FDMPage } from "./pages/user/DemandesPage";
 import { RequestPage } from "./pages/user/RequestPage";
 import { ValidationPage } from "./pages/user/ValidationPage";
+import { TraitementPage } from "./pages/user/TraitementPage";
 import { UsersPage } from "./pages/admin/UsersPage";
 import { SubdivisionsPage } from "./pages/admin/SubdivisionsPage";
 import { TypeSubdivisionsPage } from "./pages/admin/TypeSubdivisionsPage";
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="demandes" element={<FDMPage />} />
             <Route path="demandes/new" element={<RequestPage />} />
             <Route path="validations" element={<ValidationPage />} />
+            <Route path="traitement" element={<TraitementPage />} />
           </Route>
 
           {/* Route 404 */}
