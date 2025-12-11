@@ -87,7 +87,6 @@ export function RequestPage() {
       const endpoint = typeMapping[demandeType];
       const uploadUrl = `/${endpoint}/${reference}/pieces-jointes`;
 
-      
       // Let axios set the Content-Type (it will include the multipart boundary)
       await axiosInstance.post(uploadUrl, formData);
 
