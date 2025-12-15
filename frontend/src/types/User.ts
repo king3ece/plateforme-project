@@ -12,6 +12,7 @@ export interface User {
   name: string;
   lastName: string;
   email: string;
+  sexe?: 'M' | 'F' | null; // "M" pour Monsieur, "F" pour Madame
   // Backend may use `roles` (enum) or `role` — accept both
   role?: UserRole;
   roles?: UserRole;
@@ -30,6 +31,7 @@ export interface CreateUserDTO {
   lastName: string;
   email: string;
   password: string;
+  sexe?: 'M' | 'F';
   role?: UserRole;
   poste?: Poste;
   posteRef?: Poste["reference"];
@@ -41,6 +43,7 @@ export interface UpdateUserDTO {
   lastName?: string;
   email?: string;
   password?: string;
+  sexe?: 'M' | 'F';
   role?: UserRole;
   poste?: Poste;
   posteRef?: string;

@@ -4,10 +4,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import tg.idstechnologie.plateforme.secu.user.User;
 import tg.idstechnologie.plateforme.secu.user.Role;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -50,4 +52,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * Récupère un user par son activation token
      */
     Optional<User> findByActivationToken(String activationToken);
+
+    /**
+     * Récupère tous les utilisateurs ayant un poste avec le code spécifié
+     * Utilisé pour récupérer les comptables ou autres postes spécifiques
+     */
+    @Query(value = """
+        SELECT u.* FROM _users u
+        INNER JOIN postes p ON u.poste_id = p.id
+        WHERE u.is_delete = false
+        AND u.is_enable = true
+        AND p.code = :posteCode
+        """,
+        nativeQuery = true
+    )
+    List<User> findByPosteCode(@Param("posteCode") String posteCode);
 }

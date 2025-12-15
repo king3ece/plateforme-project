@@ -140,15 +140,36 @@ export const WorkflowsPage = () => {
   const handleCreateValidateur = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validation stricte : un processus doit être sélectionné
     if (!selectedProcessus) {
-      toast.error("Veuillez sélectionner un type de processus");
+      toast.error("Veuillez d'abord sélectionner un type de processus");
       return;
     }
 
+    // Validation des champs du formulaire
     const newErrors: Record<string, string> = {};
-    if (!validateurFormData.ordre) newErrors.ordre = "L'ordre est requis";
+    if (!validateurFormData.ordre || validateurFormData.ordre < 1) {
+      newErrors.ordre = "L'ordre doit être supérieur à 0";
+    } else {
+      // Vérifier que l'ordre n'existe pas déjà dans ce processus
+      const ordreExistant = validateurs.find(
+        (v) => v.ordre === validateurFormData.ordre
+      );
+      if (ordreExistant) {
+        newErrors.ordre = `L'ordre ${validateurFormData.ordre} est déjà utilisé par ${ordreExistant.user?.lastName || "un autre validateur"}`;
+      }
+    }
+
     if (!validateurFormData.userId) {
       newErrors.userId = "L'utilisateur est requis";
+    } else {
+      // Vérifier que l'utilisateur n'est pas déjà validateur dans ce processus
+      const userExistant = validateurs.find(
+        (v) => v.userId === validateurFormData.userId
+      );
+      if (userExistant) {
+        newErrors.userId = `Cet utilisateur est déjà validateur à l'ordre ${userExistant.ordre}`;
+      }
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -158,6 +179,7 @@ export const WorkflowsPage = () => {
 
     setIsLoading(true);
     try {
+      // Le typeProcessusId est automatiquement celui du processus sélectionné
       const data: CreateValidateurDTO = {
         typeProcessusId: selectedProcessus.id,
         ordre: validateurFormData.ordre,
@@ -165,14 +187,14 @@ export const WorkflowsPage = () => {
       };
 
       await workflowsAPI.createValidateur(data);
-      toast.success("Validateur ajouté avec succès");
+      toast.success(`Validateur ajouté au processus "${selectedProcessus.libelle}"`);
       setIsValidateurDialogOpen(false);
       resetValidateurForm();
       await loadValidateurs(selectedProcessus.id);
     } catch (error: any) {
       console.error("Error creating validateur:", error);
       toast.error(
-        error.response?.data?.message || "Erreur lors de la création"
+        error.response?.data?.message || "Erreur lors de l'ajout du validateur"
       );
     } finally {
       setIsLoading(false);
@@ -358,7 +380,21 @@ export const WorkflowsPage = () => {
               {selectedProcessus && (
                 <Dialog
                   open={isValidateurDialogOpen}
-                  onOpenChange={setIsValidateurDialogOpen}
+                  onOpenChange={(open: boolean) => {
+                    setIsValidateurDialogOpen(open);
+                    if (open) {
+                      // Initialiser l'ordre suggéré quand le dialogue s'ouvre
+                      const nextOrdre =
+                        validateurs.length > 0
+                          ? Math.max(...validateurs.map((v) => v.ordre)) + 1
+                          : 1;
+                      setValidateurFormData({
+                        typeProcessusId: selectedProcessus.id,
+                        ordre: nextOrdre,
+                      });
+                      setErrors({});
+                    }
+                  }}
                 >
                   <DialogTrigger asChild>
                     <Button size="sm">
@@ -374,6 +410,22 @@ export const WorkflowsPage = () => {
                       onSubmit={handleCreateValidateur}
                       className="space-y-4"
                     >
+                      {selectedProcessus && (
+                        <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                          <p className="text-sm font-medium">
+                            Processus sélectionné :
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary">
+                              {selectedProcessus.code}
+                            </Badge>
+                            <span className="text-sm">
+                              {selectedProcessus.libelle}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label htmlFor="ordre">Ordre *</Label>
                         <Input
@@ -389,10 +441,25 @@ export const WorkflowsPage = () => {
                           }
                           className={errors.ordre ? "border-destructive" : ""}
                         />
-                        {errors.ordre && (
+                        {errors.ordre ? (
                           <p className="text-destructive text-sm">
                             {errors.ordre}
                           </p>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-muted-foreground text-xs">
+                              Position du validateur dans la chaîne (1 = premier)
+                            </p>
+                            {validateurs.length > 0 && (
+                              <p className="text-muted-foreground text-xs">
+                                Ordres déjà utilisés :{" "}
+                                {validateurs
+                                  .map((v) => v.ordre)
+                                  .sort((a, b) => a - b)
+                                  .join(", ")}
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
 

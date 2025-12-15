@@ -16,8 +16,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "../../components/ui/dialog";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { FicheDescriptiveMissionAPI } from "../../api/fdm";
 import { BonPourAPI } from "../../api/bonpour";
@@ -32,6 +34,9 @@ import {
   RequestDetailData,
   RequestDetailType,
 } from "../../components/requests/RequestDetailContent";
+import { MissionForm } from "../../components/requests/FicheDescirptiveDeMissionForm";
+import { Alert, AlertDescription } from "../../components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 type RequestTab = RequestDetailType;
 
@@ -64,27 +69,38 @@ export const FDMPage = () => {
   const [detailType, setDetailType] = useState<RequestDetailType>("FDM");
   const [detailData, setDetailData] = useState<RequestDetailData | null>(null);
 
+  // États pour la modification
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingFdm, setEditingFdm] = useState<FicheDescriptiveMission | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // États pour la suppression
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<{ type: RequestDetailType; id: number; reference: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [fdmData, bonPourData, rapportData, ddaData] = await Promise.all([
+        FicheDescriptiveMissionAPI.getMyRequests(),
+        BonPourAPI.getMyRequests(),
+        RapportFinancierAPI.getMyRequests(),
+        DemandeAchatAPI.getMyRequests(),
+      ]);
+      setFdms(fdmData);
+      setBonpours(bonPourData);
+      setRapports(rapportData);
+      setDdas(ddaData);
+    } catch (error) {
+      console.error("Erreur chargement demandes:", error);
+      toast.error("Erreur lors du chargement des demandes");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const [fdmData, bonPourData, rapportData, ddaData] = await Promise.all([
-          FicheDescriptiveMissionAPI.getMyRequests(),
-          BonPourAPI.getMyRequests(),
-          RapportFinancierAPI.getMyRequests(),
-          DemandeAchatAPI.getMyRequests(),
-        ]);
-        setFdms(fdmData);
-        setBonpours(bonPourData);
-        setRapports(rapportData);
-        setDdas(ddaData);
-      } catch (error) {
-        console.error("Erreur chargement demandes:", error);
-        toast.error("Erreur lors du chargement des demandes");
-      } finally {
-        setIsLoading(false);
-      }
-    };
     loadData();
   }, []);
 
@@ -92,6 +108,130 @@ export const FDMPage = () => {
     setDetailType(type);
     setDetailData(data);
     setIsDetailOpen(true);
+  };
+
+  const openEdit = (fdm: FicheDescriptiveMission) => {
+    setEditingFdm(fdm);
+    setIsEditOpen(true);
+  };
+
+  const openDelete = (type: RequestDetailType, id: number, reference: string) => {
+    setDeletingItem({ type, id, reference });
+    setIsDeleteOpen(true);
+  };
+
+  const handleSaveEdit = async (formData: any) => {
+    if (!editingFdm) return;
+
+    setIsSaving(true);
+    try {
+      await FicheDescriptiveMissionAPI.update({
+        id: editingFdm.id,
+        nomProjet: formData.nomProjet,
+        lieuMission: formData.lieuMission,
+        dateDepart: formData.dateDepart,
+        dateProbableRetour: formData.dateProbableRetour,
+        dureeMission: formData.dureeMission,
+        objectifMission: formData.objectifMission,
+        perdieme: Number(formData.perdieme),
+        transport: Number(formData.transport),
+        bonEssence: Number(formData.bonEssence),
+        peage: Number(formData.peage),
+        laisserPasser: Number(formData.laisserPasser),
+        hotel: Number(formData.hotel),
+        divers: Number(formData.divers),
+      });
+
+      toast.success("FDM modifiée avec succès");
+      setIsEditOpen(false);
+      setEditingFdm(null);
+      await loadData();
+    } catch (error: any) {
+      console.error("Erreur lors de la modification:", error);
+      toast.error(error.response?.data?.message || "Erreur lors de la modification");
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingItem) return;
+
+    setIsDeleting(true);
+    try {
+      switch (deletingItem.type) {
+        case "FDM":
+          await FicheDescriptiveMissionAPI.delete(deletingItem.reference);
+          break;
+        case "BONPOUR":
+          await BonPourAPI.delete(deletingItem.reference);
+          break;
+        case "RFDM":
+          // Ajouter l'API de suppression pour RFDM si disponible
+          toast.error("Suppression RFDM non implémentée");
+          return;
+        case "DDA":
+          await DemandeAchatAPI.delete(deletingItem.reference);
+          break;
+      }
+
+      toast.success("Demande supprimée avec succès");
+      setIsDeleteOpen(false);
+      setDeletingItem(null);
+      await loadData();
+    } catch (error: any) {
+      console.error("Erreur lors de la suppression:", error);
+      toast.error(error.response?.data?.message || "Erreur lors de la suppression");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const canModifyOrDelete = (item: any) => {
+    // On peut modifier/supprimer uniquement si :
+    // 1. La demande n'est pas encore traitée OU
+    // 2. La demande est à corriger
+    return !item.traite || item.traitementPrecedent?.decision === "A_CORRIGER";
+  };
+
+  const renderActionButtons = (type: RequestDetailType, item: any) => {
+    const canEdit = canModifyOrDelete(item);
+
+    return (
+      <div className="flex gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => openDetails(type, item)}
+          title="Voir les détails"
+        >
+          <Eye className="h-4 w-4" />
+        </Button>
+        {canEdit && type === "FDM" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => openEdit(item as FicheDescriptiveMission)}
+            title="Modifier"
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+        )}
+        {canEdit && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => openDelete(type, item.id, item.reference)}
+            title="Supprimer"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    );
   };
 
   const renderFdmRows = () =>
@@ -114,9 +254,7 @@ export const FDMPage = () => {
           </Badge>
         </TableCell>
         <TableCell className="text-right">
-          <Button variant="ghost" size="icon" onClick={() => openDetails("FDM", fdm)}>
-            <Eye className="h-4 w-4" />
-          </Button>
+          {renderActionButtons("FDM", fdm)}
         </TableCell>
       </TableRow>
     ));
@@ -136,9 +274,7 @@ export const FDMPage = () => {
           </Badge>
         </TableCell>
         <TableCell className="text-right">
-          <Button variant="ghost" size="icon" onClick={() => openDetails("BONPOUR", bonpour)}>
-            <Eye className="h-4 w-4" />
-          </Button>
+          {renderActionButtons("BONPOUR", bonpour)}
         </TableCell>
       </TableRow>
     ));
@@ -155,9 +291,7 @@ export const FDMPage = () => {
         </TableCell>
         <TableCell>{formatDecisionBadge(rapport.traitementPrecedent?.decision)}</TableCell>
         <TableCell className="text-right">
-          <Button variant="ghost" size="icon" onClick={() => openDetails("RFDM", rapport)}>
-            <Eye className="h-4 w-4" />
-          </Button>
+          {renderActionButtons("RFDM", rapport)}
         </TableCell>
       </TableRow>
     ));
@@ -172,14 +306,10 @@ export const FDMPage = () => {
         <TableCell>{formatCurrency(demande.prixTotal, "€")}</TableCell>
         <TableCell>{formatDecisionBadge(demande.traitementPrecedent?.decision)}</TableCell>
         <TableCell className="text-right">
-          <Button variant="ghost" size="icon" onClick={() => openDetails("DDA", demande)}>
-            <Eye className="h-4 w-4" />
-          </Button>
+          {renderActionButtons("DDA", demande)}
         </TableCell>
       </TableRow>
     ));
-
-
 
   if (isLoading) {
     return (
@@ -229,6 +359,13 @@ export const FDMPage = () => {
           </Button>
         </Link>
       </div>
+
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Vous pouvez modifier ou supprimer vos demandes tant qu'elles ne sont pas validées ou si une correction est demandée.
+        </AlertDescription>
+      </Alert>
 
       <Tabs defaultValue="FDM" className="space-y-4">
         <TabsList>
@@ -281,6 +418,7 @@ export const FDMPage = () => {
         </TabsContent>
       </Tabs>
 
+      {/* Modal de détails */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -289,6 +427,67 @@ export const FDMPage = () => {
           {detailData && (
             <RequestDetailContent type={detailType} data={detailData} />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de modification FDM */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier la Fiche Descriptive de Mission</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations de votre FDM ci-dessous
+            </DialogDescription>
+          </DialogHeader>
+          {editingFdm && (
+            <MissionForm
+              initialData={{
+                nomProjet: editingFdm.nomProjet,
+                lieuMission: editingFdm.lieuMission,
+                dateDepart: editingFdm.dateDepart,
+                dateProbableRetour: editingFdm.dateProbableRetour,
+                dureeMission: editingFdm.dureeMission,
+                objectifMission: editingFdm.objectifMission,
+                perdieme: editingFdm.perdieme,
+                transport: editingFdm.transport,
+                bonEssence: editingFdm.bonEssence,
+                peage: editingFdm.peage,
+                laisserPasser: editingFdm.laisserPasser,
+                hotel: editingFdm.hotel,
+                divers: editingFdm.divers,
+              }}
+              onSave={handleSaveEdit}
+              isLoading={isSaving}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de confirmation de suppression */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette demande ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteOpen(false)}
+              disabled={isDeleting}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

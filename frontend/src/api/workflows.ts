@@ -90,11 +90,32 @@ export const workflowsAPI = {
     return response.data.object;
   },
 
+  // Récupérer les validateurs d'un type de processus spécifique (triés par ordre)
+  getValidateursByProcessus: async (typeProcessusId: number): Promise<Validateur[]> => {
+    try {
+      const response = await axiosInstance.get<ApiResponse<Validateur[]>>(
+        `/validateurs/processus/${typeProcessusId}`
+      );
+      return response.data.object;
+    } catch (error) {
+      console.error('❌ Error fetching validateurs by processus:', error);
+      throw error;
+    }
+  },
+
   // Créer un validateur
   createValidateur: async (data: CreateValidateurDTO): Promise<void> => {
+    // Transformation pour le backend: le backend attend des objets, pas des IDs
+    const payload = {
+      ordre: data.ordre,
+      typeProcessus: { id: data.typeProcessusId },
+      user: data.userId ? { id: data.userId } : null,
+      subdivision: data.subdivisionId ? { id: data.subdivisionId } : null,
+    };
+
     await axiosInstance.post<ApiResponse<string>>(
       '/validateurs/add-validateur',
-      data
+      payload
     );
   },
 

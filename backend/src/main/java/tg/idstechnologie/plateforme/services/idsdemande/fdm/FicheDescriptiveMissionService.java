@@ -374,67 +374,186 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
                     .min((v1, v2) -> Integer.compare(v1.getOrdre(), v2.getOrdre()));
 
             if (nextValidateur.isPresent()) {
+                // Passer au validateur suivant
                 fdm.setValidateurSuivant(nextValidateur.get());
-                emailService.sendMailNewFdm(
-                        nextValidateur.get().getUser().getEmail(),
-                        fdm.getId().toString(),
-                        fdm.getEmetteur().getEmail()
+                User nextUser = nextValidateur.get().getUser();
+                String titre = getTitre(nextUser.getSexe());
+                emailService.sendFdmValidationNotification(
+                        nextUser.getEmail(),
+                        titre,
+                        nextUser.getLastName(),
+                        nextUser.getName(),
+                        fdm.getId(),
+                        fdm.getTypeProcessus().getCode()
                 );
             } else {
+                // Dernier validateur : FDM validée
                 fdm.setTraite(true);
                 fdm.setFavorable(true);
                 fdm.setValidateurSuivant(null);
-                emailService.sendMailNewFdm(
-                        fdm.getEmetteur().getEmail(),
-                        fdm.getId().toString(),
-                        "Votre FDM a été approuvée par tous les validateurs"
+
+                // Notifier l'émetteur
+                User emetteur = fdm.getEmetteur();
+                String titreEmetteur = getTitre(emetteur.getSexe());
+                emailService.sendFdmApprovalNotification(
+                        emetteur.getEmail(),
+                        titreEmetteur,
+                        emetteur.getLastName(),
+                        emetteur.getName(),
+                        fdm.getDateEmission() != null ? fdm.getDateEmission().toString() : "N/A",
+                        fdm.getId(),
+                        fdm.getTypeProcessus().getCode()
                 );
+
+                // Notifier tous les comptables (utilisateurs avec poste "COMPTABLE")
+                List<User> comptables = userRepository.findByPosteCode("COMPTABLE");
+                for (User comptable : comptables) {
+                    String titreComptable = getTitre(comptable.getSexe());
+                    emailService.sendFdmToComptableNotification(
+                            comptable.getEmail(),
+                            titreComptable,
+                            comptable.getLastName(),
+                            comptable.getName(),
+                            fdm.getId(),
+                            fdm.getTypeProcessus().getCode()
+                    );
+                }
             }
         } else if (decision == Choix_decisions.REJETER) {
             fdm.setTraite(true);
             fdm.setFavorable(false);
             fdm.setValidateurSuivant(null);
-            emailService.sendMailNewFdm(
-                    fdm.getEmetteur().getEmail(),
-                    fdm.getId().toString(),
-                    "Votre FDM a été rejetée: " + commentaire
-            );
+
+            // Notifier l'émetteur
+            User emetteur = fdm.getEmetteur();
+            String titreEmetteur = getTitre(emetteur.getSexe());
+            String titreRejeteur = getTitre(currentUser.getSexe());
+            emailService.sendFdmRejectionNotification(
+                    emetteur.getEmail(),
+                    titreEmetteur,
+                    emetteur.getLastName(),
+                    emetteur.getName(),
+                    fdm.getDateEmission() != null ? fdm.getDateEmission().toString() : "N/A",
+                    commentaire != null ? commentaire : "Aucun commentaire",
+                    fdm.getId(),
+                    fdm.getTypeProcessus().getCode(),
+                    titreRejeteur,
+                    currentUser.getLastName() + " " + currentUser.getName()
+                );
+
+            // Notifier tous les validateurs précédents (optionnel, comme dans Django)
+            List<User> traiteursPrecedents = getTraiteursPrecedents(fdm);
+            for (User traiteur : traiteursPrecedents) {
+                if (!traiteur.getId().equals(currentUser.getId())) {
+                    String titreTraiteur = getTitre(traiteur.getSexe());
+                    emailService.sendFdmRejectionNotification(
+                            traiteur.getEmail(),
+                            titreTraiteur,
+                            traiteur.getLastName(),
+                            traiteur.getName(),
+                            fdm.getDateEmission() != null ? fdm.getDateEmission().toString() : "N/A",
+                            commentaire != null ? commentaire : "Aucun commentaire",
+                            fdm.getId(),
+                            fdm.getTypeProcessus().getCode(),
+                            titreRejeteur,
+                            currentUser.getLastName() + " " + currentUser.getName()
+                    );
+                }
+            }
         } else if (decision == Choix_decisions.A_CORRIGER) {
             fdm.setTraite(false);
             Validateur validateurActuel = fdm.getValidateurSuivant();
 
-            // Chercher le validateur précédent pour retourner la demande
-            Optional<Validateur> previousValidateur = validateurRepository.findPreviousValidator(
-                    fdm.getTypeProcessus().getId(),
-                    validateurActuel.getOrdre()
-            );
+            // Vérifier si on est le premier validateur
+            Validateur premierValidateur = validateurList.isEmpty() ? null : validateurList.get(0);
 
-            if (previousValidateur.isPresent()) {
-                // Retour au validateur précédent
-                fdm.setValidateurSuivant(previousValidateur.get());
-                emailService.sendMailNewFdm(
-                        previousValidateur.get().getUser().getEmail(),
-                        fdm.getId().toString(),
-                        "FDM retournée pour correction par " + currentUser.getLastName() + " " + currentUser.getName()
+            if (premierValidateur != null && validateurActuel.getId().equals(premierValidateur.getId())) {
+                // Premier validateur : retourner à l'émetteur
+                fdm.setValidateurSuivant(null);
+                User emetteur = fdm.getEmetteur();
+                String titreEmetteur = getTitre(emetteur.getSexe());
+                emailService.sendFdmCorrectionNotification(
+                        emetteur.getEmail(),
+                        titreEmetteur,
+                        emetteur.getLastName(),
+                        emetteur.getName(),
+                        fdm.getDateEmission() != null ? fdm.getDateEmission().toString() : "N/A",
+                        commentaire != null ? commentaire : "Aucun commentaire",
+                        fdm.getId(),
+                        fdm.getTypeProcessus().getCode()
                 );
             } else {
-                // Pas de validateur précédent, retour au premier validateur
-                if (!validateurList.isEmpty()) {
-                    fdm.setValidateurSuivant(validateurList.getFirst());
+                // Chercher le validateur précédent
+                Optional<Validateur> previousValidateur = validateurRepository.findPreviousValidator(
+                        fdm.getTypeProcessus().getId(),
+                        validateurActuel.getOrdre()
+                );
+
+                if (previousValidateur.isPresent()) {
+                    Validateur validateurPrecedent = previousValidateur.get();
+
+                    // Vérifier si le validateur précédent est l'émetteur
+                    if (validateurPrecedent.getUser().getId().equals(fdm.getEmetteur().getId())) {
+                        fdm.setValidateurSuivant(null);
+                        User emetteur = fdm.getEmetteur();
+                        String titreEmetteur = getTitre(emetteur.getSexe());
+                        emailService.sendFdmCorrectionNotification(
+                                emetteur.getEmail(),
+                                titreEmetteur,
+                                emetteur.getLastName(),
+                                emetteur.getName(),
+                                fdm.getDateEmission() != null ? fdm.getDateEmission().toString() : "N/A",
+                                commentaire != null ? commentaire : "Aucun commentaire",
+                                fdm.getId(),
+                                fdm.getTypeProcessus().getCode()
+                        );
+                    } else {
+                        // Retour au validateur précédent
+                        fdm.setValidateurSuivant(validateurPrecedent);
+                        User prevUser = validateurPrecedent.getUser();
+                        String titrePrev = getTitre(prevUser.getSexe());
+                        emailService.sendFdmCorrectionNotification(
+                                prevUser.getEmail(),
+                                titrePrev,
+                                prevUser.getLastName(),
+                                prevUser.getName(),
+                                fdm.getDateEmission() != null ? fdm.getDateEmission().toString() : "N/A",
+                                commentaire != null ? commentaire : "Aucun commentaire",
+                                fdm.getId(),
+                                fdm.getTypeProcessus().getCode()
+                        );
+                    }
+                } else {
+                    // Pas de validateur précédent, retour au premier
+                    if (!validateurList.isEmpty()) {
+                        fdm.setValidateurSuivant(validateurList.getFirst());
+                    }
                 }
             }
-
-            // Notifier l'émetteur
-            emailService.sendMailNewFdm(
-                    fdm.getEmetteur().getEmail(),
-                    fdm.getId().toString(),
-                    "Votre FDM nécessite des corrections: " + commentaire
-            );
         }
 
         ficheDescriptiveMissionDao.save(fdm);
 
         return new ResponseConstant().ok("Traitement effectué avec succès");
+    }
+
+    /**
+     * Méthode utilitaire pour obtenir le titre (Monsieur/Madame) selon le sexe
+     */
+    private String getTitre(String sexe) {
+        if ("M".equals(sexe)) {
+            return "Monsieur";
+        } else if ("F".equals(sexe)) {
+            return "Madame";
+        }
+        return "";
+    }
+
+    /**
+     * Récupère la liste des traiteurs précédents d'une FDM
+     */
+    private List<User> getTraiteursPrecedents(FicheDescriptiveMission fdm) {
+        return traitementFicheDescriptiveMissionDao.findTraiteursByFdmId(fdm.getId());
     }
 
     // Méthode pour calculer la durée

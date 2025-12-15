@@ -92,4 +92,150 @@ public class EmailServiceImpl implements EmailService {
             throw new RuntimeException(exception.getMessage());
         }
     }
+
+    /**
+     * Notification d'une nouvelle FDM en attente de validation
+     */
+    @Override
+    @Async
+    public void sendFdmValidationNotification(String to, String titre, String nom, String prenom, Long fdmId, String typeProcessusCode) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(to);
+            message.setSubject("NOUVELLE FICHE DESCRIPTIVE DE MISSION");
+
+            String emailBody = String.format(
+                    "%s\n%s %s,\n\n" +
+                            "Vous avez une nouvelle fiche descriptive de mission en attente de traitement.\n\n" +
+                            "REFERENCE DE LA DEMANDE : %d%s\n\n" +
+                            "Cordialement,\n" +
+                            "L'équipe IDS DEMANDE",
+                    titre, nom, prenom, fdmId, typeProcessusCode
+            );
+
+            message.setText(emailBody);
+            emailSender.send(message);
+        } catch (Exception exception) {
+            System.err.println("Erreur lors de l'envoi de l'email de validation FDM: " + exception.getMessage());
+        }
+    }
+
+    /**
+     * Notification d'approbation de FDM
+     */
+    @Override
+    @Async
+    public void sendFdmApprovalNotification(String to, String titre, String nom, String prenom, String dateEmission, Long fdmId, String typeProcessusCode) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(to);
+            message.setSubject("ACCORD DE MISSION");
+
+            String emailBody = String.format(
+                    "%s\n%s %s,\n\n" +
+                            "Votre fiche descriptive de mission émise le %s est validée.\n\n" +
+                            "REFERENCE DE LA DEMANDE : %d%s\n\n" +
+                            "Cordialement,\n" +
+                            "L'équipe IDS DEMANDE",
+                    titre, nom, prenom, dateEmission, fdmId, typeProcessusCode
+            );
+
+            message.setText(emailBody);
+            emailSender.send(message);
+        } catch (Exception exception) {
+            System.err.println("Erreur lors de l'envoi de l'email d'approbation FDM: " + exception.getMessage());
+        }
+    }
+
+    /**
+     * Notification de rejet de FDM
+     */
+    @Override
+    @Async
+    public void sendFdmRejectionNotification(String to, String titre, String nom, String prenom, String dateEmission,
+                                             String raisonRejet, Long fdmId, String typeProcessusCode,
+                                             String rejeteurTitre, String rejeteurNom) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(to);
+            message.setSubject("NOTIFICATION DE REJET DE DEMANDE DE MISSION");
+
+            String emailBody = String.format(
+                    "%s %s %s,\n\n" +
+                            "Votre demande de mission émise le %s vient d'être rejetée par %s %s.\n" +
+                            "Raison du rejet: %s.\n\n" +
+                            "REFERENCE DE LA DEMANDE : %d%s\n\n" +
+                            "Cordialement,\n" +
+                            "L'équipe IDS DEMANDE",
+                    titre, nom, prenom, dateEmission, rejeteurTitre, rejeteurNom, raisonRejet, fdmId, typeProcessusCode
+            );
+
+            message.setText(emailBody);
+            emailSender.send(message);
+        } catch (Exception exception) {
+            System.err.println("Erreur lors de l'envoi de l'email de rejet FDM: " + exception.getMessage());
+        }
+    }
+
+    /**
+     * Notification de besoin de correction
+     */
+    @Override
+    @Async
+    public void sendFdmCorrectionNotification(String to, String titre, String nom, String prenom, String dateEmission,
+                                              String raisonCorrection, Long fdmId, String typeProcessusCode) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(to);
+            message.setSubject("BESOIN DE CORRECTION");
+
+            String emailBody = String.format(
+                    "%s\n%s %s,\n\n" +
+                            "Votre fiche descriptive de mission émise le %s vous est retournée pour correction.\n" +
+                            "Raison du retour: %s.\n\n" +
+                            "REFERENCE DE LA DEMANDE : %d%s\n\n" +
+                            "Cordialement,\n" +
+                            "L'équipe IDS DEMANDE",
+                    titre, nom, prenom, dateEmission, raisonCorrection, fdmId, typeProcessusCode
+            );
+
+            message.setText(emailBody);
+            emailSender.send(message);
+        } catch (Exception exception) {
+            System.err.println("Erreur lors de l'envoi de l'email de correction FDM: " + exception.getMessage());
+        }
+    }
+
+    /**
+     * Notification au comptable pour une FDM validée
+     */
+    @Override
+    @Async
+    public void sendFdmToComptableNotification(String to, String titre, String nom, String prenom, Long fdmId, String typeProcessusCode) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(to);
+            message.setSubject("NOUVELLE FICHE DESCRIPTIVE DE MISSION VALIDEE");
+
+            String emailBody = String.format(
+                    "%s %s %s,\n\n" +
+                            "Une nouvelle fiche descriptive de mission vient d'être validée.\n\n" +
+                            "REFERENCE DE LA DEMANDE : %d%s\n\n" +
+                            "Veuillez procéder au règlement dans l'espace 'Règlements en attente' de l'application IDS DEMANDE.\n\n" +
+                            "Cordialement,\n" +
+                            "L'équipe IDS DEMANDE",
+                    titre, nom, prenom, fdmId, typeProcessusCode
+            );
+
+            message.setText(emailBody);
+            emailSender.send(message);
+        } catch (Exception exception) {
+            System.err.println("Erreur lors de l'envoi de l'email au comptable: " + exception.getMessage());
+        }
+    }
 }

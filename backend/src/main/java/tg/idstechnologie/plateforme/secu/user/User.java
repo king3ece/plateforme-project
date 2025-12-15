@@ -73,6 +73,9 @@ public class User extends BaseEntity implements UserDetails {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Subdivision subdivision;
 
+    @Column(name = "sexe", length = 1)
+    private String sexe; // "M" pour Monsieur, "F" pour Madame
+
     // @Builder.Default
     // @Column(nullable = false, unique = true)
     // private String reference = UUID.randomUUID().toString();

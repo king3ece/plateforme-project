@@ -29,42 +29,55 @@ public class UserStatisticsService {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
+        System.out.println("=== DEBUG: Calcul statistiques pour: " + user.getEmail() + " (ID: " + user.getId() + ") ===");
+
         UserDashboardStats stats = new UserDashboardStats();
 
-        // FDM Statistics
-        stats.fdmTotal = fdmRepository.countByEmetteurAndDeleteFalse(user);
-        stats.fdmEnAttente = fdmRepository.countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(user);
-        stats.fdmValidees = fdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.VALIDER);
-        stats.fdmRejetees = fdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.REJETER);
-        stats.fdmACorreiger = fdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.A_CORRIGER);
+        try {
+            // FDM Statistics
+            stats.fdmTotal = fdmRepository.countByEmetteurAndDeleteFalse(user);
+            stats.fdmEnAttente = fdmRepository.countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(user);
+            stats.fdmValidees = fdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.VALIDER);
+            stats.fdmRejetees = fdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.REJETER);
+            stats.fdmACorreiger = fdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.A_CORRIGER);
+            System.out.println("FDM - Total: " + stats.fdmTotal);
 
-        // BonPour Statistics
-        stats.bonPourTotal = bonPourRepository.countByEmetteurAndDeleteFalse(user);
-        stats.bonPourEnAttente = bonPourRepository.countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(user);
-        stats.bonPourValidees = bonPourRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.VALIDER);
-        stats.bonPourRejetees = bonPourRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.REJETER);
-        stats.bonPourACorreiger = bonPourRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.A_CORRIGER);
+            // BonPour Statistics
+            stats.bonPourTotal = bonPourRepository.countByEmetteurAndDeleteFalse(user);
+            stats.bonPourEnAttente = bonPourRepository.countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(user);
+            stats.bonPourValidees = bonPourRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.VALIDER);
+            stats.bonPourRejetees = bonPourRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.REJETER);
+            stats.bonPourACorreiger = bonPourRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.A_CORRIGER);
+            System.out.println("BonPour - Total: " + stats.bonPourTotal);
 
-        // RFDM Statistics
-        stats.rfdmTotal = rfdmRepository.countByEmetteurAndDeleteFalse(user);
-        stats.rfdmEnAttente = rfdmRepository.countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(user);
-        stats.rfdmValidees = rfdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.VALIDER);
-        stats.rfdmRejetees = rfdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.REJETER);
-        stats.rfdmACorreiger = rfdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.A_CORRIGER);
+            // RFDM Statistics
+            stats.rfdmTotal = rfdmRepository.countByEmetteurAndDeleteFalse(user);
+            stats.rfdmEnAttente = rfdmRepository.countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(user);
+            stats.rfdmValidees = rfdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.VALIDER);
+            stats.rfdmRejetees = rfdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.REJETER);
+            stats.rfdmACorreiger = rfdmRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.A_CORRIGER);
+            System.out.println("RFDM - Total: " + stats.rfdmTotal);
 
-        // DDA Statistics
-        stats.ddaTotal = demandeAchatRepository.countByEmetteurAndDeleteFalse(user);
-        stats.ddaEnAttente = demandeAchatRepository.countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(user);
-        stats.ddaValidees = demandeAchatRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.VALIDER);
-        stats.ddaRejetees = demandeAchatRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.REJETER);
-        stats.ddaACorreiger = demandeAchatRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.A_CORRIGER);
+            // DDA Statistics
+            stats.ddaTotal = demandeAchatRepository.countByEmetteurAndDeleteFalse(user);
+            stats.ddaEnAttente = demandeAchatRepository.countByEmetteurAndTraitementPrecedentIsNullAndDeleteFalse(user);
+            stats.ddaValidees = demandeAchatRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.VALIDER);
+            stats.ddaRejetees = demandeAchatRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.REJETER);
+            stats.ddaACorreiger = demandeAchatRepository.countByEmetteurAndTraitementPrecedentDecisionAndDeleteFalse(user, Choix_decisions.A_CORRIGER);
+            System.out.println("DDA - Total: " + stats.ddaTotal);
 
-        // Global Statistics
-        stats.totalDemandes = stats.fdmTotal + stats.bonPourTotal + stats.rfdmTotal + stats.ddaTotal;
-        stats.totalEnAttente = stats.fdmEnAttente + stats.bonPourEnAttente + stats.rfdmEnAttente + stats.ddaEnAttente;
-        stats.totalValidees = stats.fdmValidees + stats.bonPourValidees + stats.rfdmValidees + stats.ddaValidees;
-        stats.totalRejetees = stats.fdmRejetees + stats.bonPourRejetees + stats.rfdmRejetees + stats.ddaRejetees;
-        stats.totalACorreiger = stats.fdmACorreiger + stats.bonPourACorreiger + stats.rfdmACorreiger + stats.ddaACorreiger;
+            // Global Statistics
+            stats.totalDemandes = stats.fdmTotal + stats.bonPourTotal + stats.rfdmTotal + stats.ddaTotal;
+            stats.totalEnAttente = stats.fdmEnAttente + stats.bonPourEnAttente + stats.rfdmEnAttente + stats.ddaEnAttente;
+            stats.totalValidees = stats.fdmValidees + stats.bonPourValidees + stats.rfdmValidees + stats.ddaValidees;
+            stats.totalRejetees = stats.fdmRejetees + stats.bonPourRejetees + stats.rfdmRejetees + stats.ddaRejetees;
+            stats.totalACorreiger = stats.fdmACorreiger + stats.bonPourACorreiger + stats.rfdmACorreiger + stats.ddaACorreiger;
+
+            System.out.println("TOTAL - Demandes: " + stats.totalDemandes);
+        } catch (Exception e) {
+            System.err.println("Erreur: " + e.getMessage());
+            e.printStackTrace();
+        }
 
         return new ResponseModel(200, "Statistiques récupérées avec succès", stats);
     }

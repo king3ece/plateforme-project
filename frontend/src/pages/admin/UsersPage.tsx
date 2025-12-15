@@ -47,6 +47,7 @@ export const UsersPage = () => {
     name: "",
     lastName: "",
     password: "",
+    sexe: undefined,
     role: UserRole.USER,
     posteRef: undefined,
   });
@@ -123,6 +124,7 @@ export const UsersPage = () => {
           name: formData.name,
           lastName: formData.lastName,
           email: formData.email,
+          sexe: formData.sexe,
           role: formData.role,
           posteRef: formData.posteRef,
         };
@@ -156,6 +158,7 @@ export const UsersPage = () => {
       name: user.name,
       lastName: user.lastName,
       password: "",
+      sexe: user.sexe || undefined,
       role: user.role || user.roles || UserRole.USER,
       posteRef: user.poste?.reference,
     });
@@ -183,6 +186,7 @@ export const UsersPage = () => {
       name: "",
       lastName: "",
       password: "",
+      sexe: undefined,
       role: UserRole.USER,
       posteRef: undefined,
     });
@@ -264,6 +268,27 @@ export const UsersPage = () => {
                     <p className="text-red-500 text-sm">{errors.lastName}</p>
                   )}
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sexe">👤 Sexe</Label>
+                <Select
+                  value={formData.sexe || "none"}
+                  onValueChange={(value: string) => {
+                    setFormData({
+                      ...formData,
+                      sexe: value === "none" ? undefined : (value as 'M' | 'F'),
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner le sexe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Non spécifié</SelectItem>
+                    <SelectItem value="M">👨 Monsieur</SelectItem>
+                    <SelectItem value="F">👩 Madame</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">
