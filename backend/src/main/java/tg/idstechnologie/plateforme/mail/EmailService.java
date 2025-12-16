@@ -7,4 +7,9 @@ public interface EmailService {
 
     void sendActivationEmail(String email, String newActivationToken, String userName);
 
+    /**
+     * Envoi d'un email texte simple avec sujet personnalisé.
+     */
+    void sendSimpleMail(String to, String subject, String content, String... cc);
+
 }

@@ -40,6 +40,9 @@ import { toast } from "sonner";
 import { validators } from "../../utils/validators";
 
 export const WorkflowsPage = () => {
+  // =========================
+  // State
+  // =========================
   const [typeProcessus, setTypeProcessus] = useState<TypeProcessus[]>([]);
   const [selectedProcessus, setSelectedProcessus] =
     useState<TypeProcessus | null>(null);
@@ -63,6 +66,9 @@ export const WorkflowsPage = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // =========================
+  // Effects
+  // =========================
   useEffect(() => {
     loadTypeProcessus();
     loadUsers();
@@ -71,6 +77,10 @@ export const WorkflowsPage = () => {
   useEffect(() => {
     if (selectedProcessus) {
       loadValidateurs(selectedProcessus.id);
+      setValidateurFormData((prev) => ({
+        ...prev,
+        typeProcessusId: selectedProcessus.id,
+      }));
     }
   }, [selectedProcessus]);
 
@@ -78,6 +88,14 @@ export const WorkflowsPage = () => {
     try {
       const data = await workflowsAPI.getAllTypeProcessus();
       setTypeProcessus(data);
+      // Pré-sélectionner le premier processus si rien n'est choisi
+      if (!selectedProcessus && data.length > 0) {
+        setSelectedProcessus(data[0]);
+        setValidateurFormData((prev) => ({
+          ...prev,
+          typeProcessusId: data[0].id,
+        }));
+      }
     } catch (error) {
       console.error("Error loading type processus:", error);
       toast.error("Erreur lors du chargement des types de processus");
@@ -90,6 +108,14 @@ export const WorkflowsPage = () => {
         typeProcessusId
       );
       setValidateurs(data);
+      // Préparer l'ordre par défaut pour le prochain validateur
+      const nextOrdre =
+        data.length > 0 ? Math.max(...data.map((v) => v.ordre)) + 1 : 1;
+      setValidateurFormData((prev) => ({
+        ...prev,
+        typeProcessusId,
+        ordre: nextOrdre,
+      }));
     } catch (error) {
       console.error("Error loading validateurs:", error);
       toast.error("Erreur lors du chargement des validateurs");
@@ -100,6 +126,13 @@ export const WorkflowsPage = () => {
     try {
       const data = await usersAPI.getAll();
       setUsers(data);
+      // Pré-sélectionner le premier user pour éviter l'erreur "Utilisateur requis"
+      if (data.length > 0) {
+        setValidateurFormData((prev) => ({
+          ...prev,
+          userId: prev.userId ?? data[0].id,
+        }));
+      }
     } catch (error) {
       console.error("Error loading users:", error);
       toast.error("Erreur lors du chargement des utilisateurs");
@@ -140,16 +173,10 @@ export const WorkflowsPage = () => {
   const handleCreateValidateur = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedProcessus) {
-      toast.error("Veuillez sélectionner un type de processus");
-      return;
-    }
-
     const newErrors: Record<string, string> = {};
     if (!validateurFormData.ordre) newErrors.ordre = "L'ordre est requis";
-    if (!validateurFormData.userId) {
-      newErrors.userId = "L'utilisateur est requis";
-    }
+    if (!validateurFormData.userId) newErrors.userId = "L'utilisateur est requis";
+    if (!validateurFormData.typeProcessusId) newErrors.typeProcessusId = "Le type de processus est requis";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -158,8 +185,18 @@ export const WorkflowsPage = () => {
 
     setIsLoading(true);
     try {
+      const processusId =
+        validateurFormData.typeProcessusId ||
+        selectedProcessus?.id ||
+        typeProcessus[0]?.id;
+
+      if (!processusId) {
+        toast.error("Sélectionnez un type de processus");
+        return;
+      }
+
       const data: CreateValidateurDTO = {
-        typeProcessusId: selectedProcessus.id,
+        typeProcessusId: processusId,
         ordre: validateurFormData.ordre,
         userId: validateurFormData.userId,
       };
@@ -168,7 +205,13 @@ export const WorkflowsPage = () => {
       toast.success("Validateur ajouté avec succès");
       setIsValidateurDialogOpen(false);
       resetValidateurForm();
-      await loadValidateurs(selectedProcessus.id);
+      // Mettre à jour la sélection pour refléter le processus choisi
+      const newlySelected =
+        typeProcessus.find((t) => t.id === processusId) || selectedProcessus;
+      if (newlySelected) {
+        setSelectedProcessus(newlySelected);
+        await loadValidateurs(newlySelected.id);
+      }
     } catch (error: any) {
       console.error("Error creating validateur:", error);
       toast.error(
@@ -211,12 +254,17 @@ export const WorkflowsPage = () => {
   };
 
   const resetValidateurForm = () => {
+    const nextOrdre =
+      validateurs.length > 0
+        ? Math.max(...validateurs.map((v) => v.ordre)) + 1
+        : 1;
+    const defaultProcessusId =
+      selectedProcessus?.id || typeProcessus[0]?.id || 0;
+
     setValidateurFormData({
-      typeProcessusId: 0,
-      ordre:
-        validateurs.length > 0
-          ? Math.max(...validateurs.map((v) => v.ordre)) + 1
-          : 1,
+      typeProcessusId: defaultProcessusId,
+      ordre: nextOrdre,
+      userId: users.length > 0 ? users[0].id : undefined,
     });
     setErrors({});
   };
@@ -375,6 +423,43 @@ export const WorkflowsPage = () => {
                       className="space-y-4"
                     >
                       <div className="space-y-2">
+                        <Label htmlFor="typeProcessusId">Type de processus *</Label>
+                        <Select
+                          value={
+                            validateurFormData.typeProcessusId
+                              ? validateurFormData.typeProcessusId.toString()
+                              : ""
+                          }
+                          onValueChange={(value: string) =>
+                            setValidateurFormData((prev) => ({
+                              ...prev,
+                              typeProcessusId: parseInt(value),
+                            }))
+                          }
+                        >
+                          <SelectTrigger
+                            className={
+                              errors.typeProcessusId ? "border-destructive" : ""
+                            }
+                          >
+                            <SelectValue placeholder="Sélectionner un type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {typeProcessus.map((tp) => (
+                              <SelectItem key={tp.id} value={tp.id.toString()}>
+                                {tp.libelle} ({tp.code})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors.typeProcessusId && (
+                          <p className="text-destructive text-sm">
+                            {errors.typeProcessusId}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
                         <Label htmlFor="ordre">Ordre *</Label>
                         <Input
                           id="ordre"
@@ -401,10 +486,10 @@ export const WorkflowsPage = () => {
                         <Select
                           value={validateurFormData.userId?.toString() || ""}
                           onValueChange={(value: string) =>
-                            setValidateurFormData({
-                              ...validateurFormData,
+                            setValidateurFormData((prev) => ({
+                              ...prev,
                               userId: parseInt(value),
-                            })
+                            }))
                           }
                         >
                           <SelectTrigger

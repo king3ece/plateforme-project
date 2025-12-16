@@ -69,6 +69,14 @@ export const workflowsAPI = {
 
   // ============ VALIDATEURS ============
 
+  // Récupérer les validateurs pour un type de processus
+  getValidateursByProcessus: async (typeProcessusId: number): Promise<Validateur[]> => {
+    const response = await axiosInstance.get<ApiResponse<Validateur[]>>(
+      `/validateurs/processus/${typeProcessusId}`
+    );
+    return response.data.object;
+  },
+
   // Récupérer tous les validateurs (avec pagination)
   getAllValidateurs: async (page = 0, size = 30): Promise<Validateur[]> => {
     try {
@@ -92,18 +100,47 @@ export const workflowsAPI = {
 
   // Créer un validateur
   createValidateur: async (data: CreateValidateurDTO): Promise<void> => {
+    const payload: any = {
+      ordre: data.ordre,
+      typeProcessus: { id: data.typeProcessusId },
+    };
+
+    if (data.userId) {
+      payload.user = { id: data.userId };
+    }
+    if (data.subdivisionId) {
+      payload.subdivision = { id: data.subdivisionId };
+    }
+
     await axiosInstance.post<ApiResponse<string>>(
       '/validateurs/add-validateur',
-      data
+      payload
     );
   },
 
   // Mettre à jour un validateur
   updateValidateur: async (data: Validateur): Promise<void> => {
-    await axiosInstance.put<ApiResponse<string>>(
-      '/validateurs',
-      data
-    );
+    const payload: any = {
+      reference: data.reference,
+      ordre: data.ordre,
+      typeProcessus: data.typeProcessusId
+        ? { id: data.typeProcessusId }
+        : data.typeProcessus
+        ? { id: data.typeProcessus.id }
+        : undefined,
+      user: data.userId
+        ? { id: data.userId }
+        : data.user
+        ? { id: data.user.id }
+        : undefined,
+      subdivision: data.subdivisionId
+        ? { id: data.subdivisionId }
+        : data.subdivision
+        ? { id: data.subdivision.id }
+        : undefined,
+    };
+
+    await axiosInstance.put<ApiResponse<string>>('/validateurs', payload);
   },
 
   // Supprimer un validateur (soft delete) par référence

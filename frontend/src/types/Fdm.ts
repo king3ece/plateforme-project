@@ -69,7 +69,11 @@ export interface CreateFDMRequest {
 }
 
 export interface UpdateFDMRequest {
-  id: number;
+  /**
+   * Référence unique de la FDM (utilisée par le backend pour retrouver l'entité)
+   */
+  reference: string;
+  id?: number;
   nomProjet?: string;
   lieuMission?: string;
   dateDepart?: string;

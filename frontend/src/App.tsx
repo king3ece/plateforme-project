@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PrivateRoute } from "./routes/PrivateRoute";
+import { ValidatorRoute } from "./routes/ValidatorRoute";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { AdminLayout } from "./components/layout/AdminLayout";
 import { UserLayout } from "./components/layout/UserLayout";
@@ -20,6 +21,7 @@ import { UserRole } from "./types/User";
 import { Toaster } from "./components/ui/sonner";
 import "./styles/globals.css";
 import React from "react";
+import { FdmLabPage } from "./pages/user/FdmLabPage";
 
 // Composant pour la redirection racine
 const RootRedirect = () => {
@@ -86,8 +88,30 @@ export default function App() {
             <Route index element={<UserDashboard />} />
             <Route path="demandes" element={<FDMPage />} />
             <Route path="demandes/new" element={<RequestPage />} />
-            <Route path="validations" element={<ValidationPage />} />
-            <Route path="traitement" element={<TraitementPage />} />
+            <Route
+              path="validations"
+              element={
+                <ValidatorRoute>
+                  <ValidationPage />
+                </ValidatorRoute>
+              }
+            />
+            <Route
+              path="traitement"
+              element={
+                <ValidatorRoute>
+                  <TraitementPage />
+                </ValidatorRoute>
+              }
+            />
+            <Route
+              path="fdm-lab"
+              element={
+                <ValidatorRoute>
+                  <FdmLabPage />
+                </ValidatorRoute>
+              }
+            />
           </Route>
 
           {/* Route 404 */}

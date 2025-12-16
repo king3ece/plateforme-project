@@ -92,4 +92,26 @@ public class EmailServiceImpl implements EmailService {
             throw new RuntimeException(exception.getMessage());
         }
     }
+
+    /**
+     * Envoi générique d'un email avec sujet et contenu fournis.
+     */
+    @Override
+    @Async
+    public void sendSimpleMail(String to, String subject, String content, String... cc) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setSubject(subject);
+            message.setFrom(fromEmail);
+            message.setTo(to);
+            if (cc != null && cc.length > 0) {
+                message.setCc(cc);
+            }
+            message.setText(content);
+            emailSender.send(message);
+        } catch (Exception exception) {
+            System.err.println("Erreur lors de l'envoi de l'email: " + exception.getMessage());
+            throw new RuntimeException(exception.getMessage());
+        }
+    }
 }
