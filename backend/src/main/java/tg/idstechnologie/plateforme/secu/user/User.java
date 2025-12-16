@@ -84,6 +84,15 @@ public class User extends BaseEntity implements UserDetails {
     @Column(nullable = false, name = "is_enable")
     private Boolean enable = false;
 
+    @Column(name = "is_comptable")
+    private Boolean isComptable = false;
+
+    @Column(name = "is_gestock")
+    private Boolean isGestock = false;
+
+    @Column(name = "sexe")
+    private String sexe;
+
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

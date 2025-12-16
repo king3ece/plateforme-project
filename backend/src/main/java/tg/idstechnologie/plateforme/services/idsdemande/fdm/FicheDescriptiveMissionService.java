@@ -20,7 +20,6 @@ import tg.idstechnologie.plateforme.models.idsdemande.fdm.TraitementFicheDescrip
 import tg.idstechnologie.plateforme.utils.Choix_decisions;
 import tg.idstechnologie.plateforme.response.ResponseConstant;
 import tg.idstechnologie.plateforme.response.ResponseModel;
-//import tg.idstechnologie.plateforme.secu.user.*;
 import tg.idstechnologie.plateforme.secu.user.User;
 import tg.idstechnologie.plateforme.services.user.CurrentUserService;
 import tg.idstechnologie.plateforme.file_upload.StorageService;
@@ -40,7 +39,9 @@ import java.util.Optional;
 @Service
 @Transactional
 @RequiredArgsConstructor
-public class FicheDescriptiveMissionService   implements FicheDescriptiveMissionInterface {
+public class FicheDescriptiveMissionService implements FicheDescriptiveMissionInterface {
+
+    private static final String PROCESS_CODE = "FDM";
 
     private final FicheDescriptiveMissionRepository ficheDescriptiveMissionDao;
     private final TraitementFicheDescriptiveMissionRepository traitementFicheDescriptiveMissionDao;
@@ -56,69 +57,17 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
 
     @Override
     public ResponseModel createEntity(FicheDescriptiveMission ficheDescriptiveMission) {
+        validateFDM(ficheDescriptiveMission);
 
-        if(ficheDescriptiveMission.getNomProjet() == null || ficheDescriptiveMission.getNomProjet().isEmpty() ||ficheDescriptiveMission.getNomProjet().isBlank()) {
-            throw new ObjectNotValidException("Nom Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getLieuMission() == null || ficheDescriptiveMission.getLieuMission().isEmpty() ||ficheDescriptiveMission.getLieuMission().isBlank()) {
-            throw new ObjectNotValidException("Lieu Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getObjectifMission() == null || ficheDescriptiveMission.getObjectifMission().isEmpty() ||ficheDescriptiveMission.getObjectifMission().isBlank()) {
-            throw new ObjectNotValidException("Objectif Obligatoire");
-        }
-
-
-        if(ficheDescriptiveMission.getPerdieme() == null || ficheDescriptiveMission.getPerdieme() < 0) {
-            throw new ObjectNotValidException("Perdieme Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getTransport() == null || ficheDescriptiveMission.getTransport() < 0) {
-            throw new ObjectNotValidException("Transport Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getPeage() == null || ficheDescriptiveMission.getPeage() < 0) {
-            throw new ObjectNotValidException("Peage Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getLaisserPasser() == null || ficheDescriptiveMission.getLaisserPasser() < 0) {
-            throw new ObjectNotValidException("Laisser passer Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getBonEssence() == null || ficheDescriptiveMission.getBonEssence() < 0) {
-            throw new ObjectNotValidException("Bon essence Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getHotel() == null || ficheDescriptiveMission.getHotel() < 0) {
-            throw new ObjectNotValidException("Hote Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getDivers() == null || ficheDescriptiveMission.getDivers() < 0) {
-            throw new ObjectNotValidException("Divers Obligatoire");
-        }
-
-        if (ficheDescriptiveMission.getDateDepart() == null || ficheDescriptiveMission.getDateDepart().isBefore(LocalDate.now())) {
-            throw new ObjectNotValidException("Date depart erreur");
-        }
-
-        if (ficheDescriptiveMission.getDateProbableRetour() == null) {
-            throw new ObjectNotValidException("Date problable retour erreur");
-        }
-
-        if (ficheDescriptiveMission.getDateDepart().isAfter(ficheDescriptiveMission.getDateProbableRetour())) {
-            throw new ObjectNotValidException("Date erreur");
-        }
         Optional<User> emetteur = userRepository.findByReference(currentUserService.getCurrentUserRef());
         if (emetteur.isEmpty()) {
             throw new ObjectNotValidException("User Obligatoire");
         }
 
-        Optional<TypeProcessus> typeProcessus = typeProcessusRepository.findByCode("FDM");
+        Optional<TypeProcessus> typeProcessus = typeProcessusRepository.findByCode(PROCESS_CODE);
         if (typeProcessus.isEmpty()) {
-            // Auto-create a default TypeProcessus for FDM to avoid validation failures in dev environments
             TypeProcessus tp = new TypeProcessus();
-            tp.setCode("FDM");
+            tp.setCode(PROCESS_CODE);
             tp.setLibelle("Fiche descriptive de mission");
             tp = typeProcessusRepository.save(tp);
             typeProcessus = Optional.of(tp);
@@ -126,18 +75,16 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
 
         ficheDescriptiveMission.setEmetteur(emetteur.get());
         ficheDescriptiveMission.setTypeProcessus(typeProcessus.get());
-        ficheDescriptiveMission.setDureeMission(calculerDuree(ficheDescriptiveMission.getDateDepart(),ficheDescriptiveMission.getDateProbableRetour()));
-        // Le totalEstimatif est calculé automatiquement par @PrePersist
+        ficheDescriptiveMission.setDureeMission(calculerDuree(ficheDescriptiveMission.getDateDepart(), ficheDescriptiveMission.getDateProbableRetour()));
 
-        List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode("FDM");
+        List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode(PROCESS_CODE);
         FicheDescriptiveMission newitem;
-        if(!validateurList.isEmpty())
-        {
+        String emetteurNom = emetteur.get().getLastName() + " " + emetteur.get().getName();
+
+        if (!validateurList.isEmpty()) {
             Validateur premierValidateur = validateurList.getFirst();
 
-            // Auto-validation si l'émetteur est le premier validateur
             if (premierValidateur.getUser().getId().equals(emetteur.get().getId())) {
-                // Créer un traitement auto-validé
                 ficheDescriptiveMission.setDateEmission(LocalDateTime.now());
                 newitem = ficheDescriptiveMissionDao.save(ficheDescriptiveMission);
 
@@ -151,7 +98,6 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
 
                 newitem.setTraitementPrecedent(autoTraitement);
 
-                // Passer au validateur suivant
                 Optional<Validateur> nextValidateur = validateurList.stream()
                         .filter(v -> v.getOrdre() > premierValidateur.getOrdre())
                         .min((v1, v2) -> Integer.compare(v1.getOrdre(), v2.getOrdre()));
@@ -159,113 +105,60 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
                 if (nextValidateur.isPresent()) {
                     newitem.setValidateurSuivant(nextValidateur.get());
                     ficheDescriptiveMissionDao.save(newitem);
-                    emailService.sendMailNewFdm(
+                    emailService.sendMailNewDemande(
                             nextValidateur.get().getUser().getEmail(),
-                            newitem.getId().toString(),
-                            emetteur.get().getEmail()
+                            PROCESS_CODE,
+                            newitem.getReference(),
+                            emetteurNom
                     );
                 } else {
-                    // Pas de validateur suivant, demande approuvée
                     newitem.setTraite(true);
                     newitem.setFavorable(true);
                     newitem.setValidateurSuivant(null);
                     ficheDescriptiveMissionDao.save(newitem);
-                    emailService.sendMailNewFdm(
-                            emetteur.get().getEmail(),
-                            newitem.getId().toString(),
-                            "Votre FDM a été auto-approuvée"
-                    );
+                    emailService.sendMailApprobation(emetteur.get().getEmail(), PROCESS_CODE, newitem.getReference());
+                    notifyComptables(newitem.getReference(), emetteurNom);
                 }
             } else {
-                // Processus normal
                 ficheDescriptiveMission.setValidateurSuivant(premierValidateur);
                 ficheDescriptiveMission.setDateEmission(LocalDateTime.now());
                 newitem = ficheDescriptiveMissionDao.save(ficheDescriptiveMission);
-                emailService.sendMailNewFdm(premierValidateur.getUser().getEmail(), newitem.getId().toString(), emetteur.get().getEmail());
+                emailService.sendMailNewDemande(
+                        premierValidateur.getUser().getEmail(),
+                        PROCESS_CODE,
+                        newitem.getReference(),
+                        emetteurNom
+                );
             }
         } else {
-            // Aucun validateur configuré pour ce processus : on enregistre quand même
-            // et on considère la demande comme approuvée automatiquement en environnement dev
             ficheDescriptiveMission.setDateEmission(LocalDateTime.now());
             newitem = ficheDescriptiveMissionDao.save(ficheDescriptiveMission);
             newitem.setTraite(true);
             newitem.setFavorable(true);
             newitem.setValidateurSuivant(null);
             ficheDescriptiveMissionDao.save(newitem);
-            emailService.sendMailNewFdm(
-                    emetteur.get().getEmail(),
-                    newitem.getId().toString(),
-                    "Votre FDM a été approuvée (aucun validateur configuré)"
-            );
+            emailService.sendMailApprobation(emetteur.get().getEmail(), PROCESS_CODE, newitem.getReference());
+            notifyComptables(newitem.getReference(), emetteurNom);
         }
-
 
         return new ResponseConstant().ok(newitem);
     }
 
     @Override
     public ResponseModel updateEntity(FicheDescriptiveMission ficheDescriptiveMission) {
+        validateFDM(ficheDescriptiveMission);
 
-        if(ficheDescriptiveMission.getNomProjet() == null || ficheDescriptiveMission.getNomProjet().isEmpty() ||ficheDescriptiveMission.getNomProjet().isBlank()) {
-            throw new ObjectNotValidException("Nom Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getLieuMission() == null || ficheDescriptiveMission.getLieuMission().isEmpty() ||ficheDescriptiveMission.getLieuMission().isBlank()) {
-            throw new ObjectNotValidException("Lieu Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getObjectifMission() == null || ficheDescriptiveMission.getObjectifMission().isEmpty() ||ficheDescriptiveMission.getObjectifMission().isBlank()) {
-            throw new ObjectNotValidException("Objectif Obligatoire");
-        }
-
-
-        if(ficheDescriptiveMission.getPerdieme() == null || ficheDescriptiveMission.getPerdieme() < 0) {
-            throw new ObjectNotValidException("Perdieme Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getTransport() == null || ficheDescriptiveMission.getTransport() < 0) {
-            throw new ObjectNotValidException("Transport Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getPeage() == null || ficheDescriptiveMission.getPeage() < 0) {
-            throw new ObjectNotValidException("Peage Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getLaisserPasser() == null || ficheDescriptiveMission.getLaisserPasser() < 0) {
-            throw new ObjectNotValidException("Laisser passer Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getBonEssence() == null || ficheDescriptiveMission.getBonEssence() < 0) {
-            throw new ObjectNotValidException("Bon essence Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getHotel() == null || ficheDescriptiveMission.getHotel() < 0) {
-            throw new ObjectNotValidException("Hote Obligatoire");
-        }
-
-        if(ficheDescriptiveMission.getDivers() == null || ficheDescriptiveMission.getDivers() < 0) {
-            throw new ObjectNotValidException("Divers Obligatoire");
-        }
-
-        if (ficheDescriptiveMission.getDateDepart() == null || ficheDescriptiveMission.getDateDepart().isBefore(LocalDate.now())) {
-            throw new ObjectNotValidException("Date depart erreur");
-        }
-
-        if(ficheDescriptiveMission.getTypeProcessus() == null) {
+        if (ficheDescriptiveMission.getTypeProcessus() == null) {
             throw new ObjectNotValidException("Type Obligatoire");
         }
 
-        if (ficheDescriptiveMission.getDateProbableRetour() == null || !ficheDescriptiveMission.getDateProbableRetour().isAfter(ficheDescriptiveMission.getDateDepart())) {
-            throw new ObjectNotValidException("Date problable retour erreur");
-        }
         Optional<User> emetteur = userRepository.findByReference(currentUserService.getCurrentUserRef());
         if (emetteur.isEmpty()) {
             throw new ObjectNotValidException("User Obligatoire");
         }
 
-
         Optional<FicheDescriptiveMission> result = ficheDescriptiveMissionDao.findByReference(ficheDescriptiveMission.getReference());
-        if(result.isPresent()) {
+        if (result.isPresent()) {
             FicheDescriptiveMission item = result.get();
 
             item.setNomProjet(ficheDescriptiveMission.getNomProjet() != null ? ficheDescriptiveMission.getNomProjet() : item.getNomProjet());
@@ -276,19 +169,17 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
             item.setPeage(ficheDescriptiveMission.getPeage() != null ? ficheDescriptiveMission.getPeage() : item.getPeage());
             item.setLaisserPasser(ficheDescriptiveMission.getLaisserPasser() != null ? ficheDescriptiveMission.getLaisserPasser() : item.getLaisserPasser());
             item.setBonEssence(ficheDescriptiveMission.getBonEssence() != null ? ficheDescriptiveMission.getBonEssence() : item.getBonEssence());
-
             item.setHotel(ficheDescriptiveMission.getHotel() != null ? ficheDescriptiveMission.getHotel() : item.getHotel());
             item.setDivers(ficheDescriptiveMission.getDivers() != null ? ficheDescriptiveMission.getDivers() : item.getDivers());
             item.setDateDepart(ficheDescriptiveMission.getDateDepart() != null ? ficheDescriptiveMission.getDateDepart() : item.getDateDepart());
             item.setDateProbableRetour(ficheDescriptiveMission.getDateProbableRetour() != null ? ficheDescriptiveMission.getDateProbableRetour() : item.getDateProbableRetour());
 
             item.setDureeMission(calculerDuree(item.getDateDepart(), item.getDateProbableRetour()));
-            // Le totalEstimatif est calculé automatiquement par @PreUpdate
 
             ficheDescriptiveMissionDao.save(item);
-            return new ResponseConstant().ok("Action effectuée avec succes");
+            return new ResponseConstant().ok("Action effectuée avec succès");
         }
-        return new ResponseConstant().noContent("Aucune correspondance trouvé");
+        return new ResponseConstant().noContent("Aucune correspondance trouvée");
     }
 
     @Override
@@ -299,22 +190,22 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
     @Override
     public ResponseModel getOneEntityNotDeleted(String ref) {
         Optional<FicheDescriptiveMission> result = ficheDescriptiveMissionDao.findByReference(ref);
-        if(result.isPresent()) {
+        if (result.isPresent()) {
             return new ResponseConstant().ok(result.get());
         }
-        return new ResponseConstant().noContent("Aucune correspondance trouvé");
+        return new ResponseConstant().noContent("Aucune correspondance trouvée");
     }
 
     @Override
     public ResponseModel deleteOneEntityNotDeleted(String ref) {
         Optional<FicheDescriptiveMission> result = ficheDescriptiveMissionDao.findByReference(ref);
-        if(result.isPresent()) {
+        if (result.isPresent()) {
             FicheDescriptiveMission type = result.get();
             type.setDelete(true);
             ficheDescriptiveMissionDao.save(type);
-            return new ResponseConstant().ok("Action effectuée avec succes");
+            return new ResponseConstant().ok("Action effectuée avec succès");
         }
-        return new ResponseConstant().noContent("Aucune correspondance trouvé");
+        return new ResponseConstant().noContent("Aucune correspondance trouvée");
     }
 
     @Override
@@ -365,6 +256,8 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
         fdm.setTraitementPrecedent(traitement);
 
         List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode(fdm.getTypeProcessus().getCode());
+        String currentUserNom = currentUser.getLastName() + " " + currentUser.getName();
+        String emetteurNom = fdm.getEmetteur().getLastName() + " " + fdm.getEmetteur().getName();
 
         if (decision == Choix_decisions.VALIDER) {
             Validateur validateurActuel = fdm.getValidateurSuivant();
@@ -375,61 +268,87 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
 
             if (nextValidateur.isPresent()) {
                 fdm.setValidateurSuivant(nextValidateur.get());
-                emailService.sendMailNewFdm(
+                emailService.sendMailNewDemande(
                         nextValidateur.get().getUser().getEmail(),
-                        fdm.getId().toString(),
-                        fdm.getEmetteur().getEmail()
+                        PROCESS_CODE,
+                        fdm.getReference(),
+                        emetteurNom
                 );
             } else {
                 fdm.setTraite(true);
                 fdm.setFavorable(true);
                 fdm.setValidateurSuivant(null);
-                emailService.sendMailNewFdm(
-                        fdm.getEmetteur().getEmail(),
-                        fdm.getId().toString(),
-                        "Votre FDM a été approuvée par tous les validateurs"
-                );
+                emailService.sendMailApprobation(fdm.getEmetteur().getEmail(), PROCESS_CODE, fdm.getReference());
+                notifyComptables(fdm.getReference(), emetteurNom);
             }
         } else if (decision == Choix_decisions.REJETER) {
             fdm.setTraite(true);
             fdm.setFavorable(false);
             fdm.setValidateurSuivant(null);
-            emailService.sendMailNewFdm(
+
+            emailService.sendMailRejet(
                     fdm.getEmetteur().getEmail(),
-                    fdm.getId().toString(),
-                    "Votre FDM a été rejetée: " + commentaire
+                    PROCESS_CODE,
+                    fdm.getReference(),
+                    currentUserNom,
+                    commentaire
             );
+
+            notifyPreviousValidatorsOnRejection(fdm, currentUser, commentaire);
         } else if (decision == Choix_decisions.A_CORRIGER) {
             fdm.setTraite(false);
             Validateur validateurActuel = fdm.getValidateurSuivant();
 
-            // Chercher le validateur précédent pour retourner la demande
-            Optional<Validateur> previousValidateur = validateurRepository.findPreviousValidator(
-                    fdm.getTypeProcessus().getId(),
-                    validateurActuel.getOrdre()
-            );
+            Validateur premierValidateur = validateurList.isEmpty() ? null : validateurList.getFirst();
 
-            if (previousValidateur.isPresent()) {
-                // Retour au validateur précédent
-                fdm.setValidateurSuivant(previousValidateur.get());
-                emailService.sendMailNewFdm(
-                        previousValidateur.get().getUser().getEmail(),
-                        fdm.getId().toString(),
-                        "FDM retournée pour correction par " + currentUser.getLastName() + " " + currentUser.getName()
+            if (premierValidateur != null && validateurActuel.getId().equals(premierValidateur.getId())) {
+                fdm.setValidateurSuivant(null);
+                emailService.sendMailCorrection(
+                        fdm.getEmetteur().getEmail(),
+                        PROCESS_CODE,
+                        fdm.getReference(),
+                        commentaire
                 );
             } else {
-                // Pas de validateur précédent, retour au premier validateur
-                if (!validateurList.isEmpty()) {
-                    fdm.setValidateurSuivant(validateurList.getFirst());
+                Optional<Validateur> previousValidateur = validateurRepository.findPreviousValidator(
+                        fdm.getTypeProcessus().getId(),
+                        validateurActuel.getOrdre()
+                );
+
+                if (previousValidateur.isPresent()) {
+                    if (previousValidateur.get().getUser().getId().equals(fdm.getEmetteur().getId())) {
+                        fdm.setValidateurSuivant(null);
+                        emailService.sendMailCorrection(
+                                fdm.getEmetteur().getEmail(),
+                                PROCESS_CODE,
+                                fdm.getReference(),
+                                commentaire
+                        );
+                    } else {
+                        fdm.setValidateurSuivant(previousValidateur.get());
+                        emailService.sendMailCorrection(
+                                previousValidateur.get().getUser().getEmail(),
+                                PROCESS_CODE,
+                                fdm.getReference(),
+                                commentaire
+                        );
+                        emailService.sendMailCorrection(
+                                fdm.getEmetteur().getEmail(),
+                                PROCESS_CODE,
+                                fdm.getReference(),
+                                commentaire
+                        );
+                    }
+                } else {
+                    fdm.setValidateurSuivant(null);
+                    emailService.sendMailCorrection(
+                            fdm.getEmetteur().getEmail(),
+                            PROCESS_CODE,
+                            fdm.getReference(),
+                            commentaire
+                    );
                 }
             }
-
-            // Notifier l'émetteur
-            emailService.sendMailNewFdm(
-                    fdm.getEmetteur().getEmail(),
-                    fdm.getId().toString(),
-                    "Votre FDM nécessite des corrections: " + commentaire
-            );
         }
 
         ficheDescriptiveMissionDao.save(fdm);
@@ -437,12 +356,102 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
         return new ResponseConstant().ok("Traitement effectué avec succès");
     }
 
-    // Méthode pour calculer la durée
+    /**
+     * Notifier tous les comptables d'une demande approuvée
+     */
+    private void notifyComptables(String reference, String emetteurNom) {
+        List<User> comptables = userRepository.findAllComptables();
+        for (User comptable : comptables) {
+            emailService.sendMailComptable(
+                    comptable.getEmail(),
+                    PROCESS_CODE,
+                    reference,
+                    emetteurNom
+            );
+        }
+    }
+
+    /**
+     * Notifier tous les validateurs précédents lors d'un rejet
+     */
+    private void notifyPreviousValidatorsOnRejection(FicheDescriptiveMission fdm, User rejeteur, String raison) {
+        List<TraitementFicheDescriptiveMission> traitements = traitementFicheDescriptiveMissionDao.findByFicheDescriptiveMissionId(fdm.getId());
+        String rejeteurNom = rejeteur.getLastName() + " " + rejeteur.getName();
+
+        for (TraitementFicheDescriptiveMission t : traitements) {
+            if (t.getTraiteur() != null && !t.getTraiteur().getId().equals(rejeteur.getId())) {
+                emailService.sendMailRejet(
+                        t.getTraiteur().getEmail(),
+                        PROCESS_CODE,
+                        fdm.getReference(),
+                        rejeteurNom,
+                        raison
+                );
+            }
+        }
+    }
+
+    /**
+     * Valider les champs obligatoires d'une FDM
+     */
+    private void validateFDM(FicheDescriptiveMission fdm) {
+        if (fdm.getNomProjet() == null || fdm.getNomProjet().isEmpty() || fdm.getNomProjet().isBlank()) {
+            throw new ObjectNotValidException("Nom Obligatoire");
+        }
+
+        if (fdm.getLieuMission() == null || fdm.getLieuMission().isEmpty() || fdm.getLieuMission().isBlank()) {
+            throw new ObjectNotValidException("Lieu Obligatoire");
+        }
+
+        if (fdm.getObjectifMission() == null || fdm.getObjectifMission().isEmpty() || fdm.getObjectifMission().isBlank()) {
+            throw new ObjectNotValidException("Objectif Obligatoire");
+        }
+
+        if (fdm.getPerdieme() == null || fdm.getPerdieme() < 0) {
+            throw new ObjectNotValidException("Perdieme Obligatoire");
+        }
+
+        if (fdm.getTransport() == null || fdm.getTransport() < 0) {
+            throw new ObjectNotValidException("Transport Obligatoire");
+        }
+
+        if (fdm.getPeage() == null || fdm.getPeage() < 0) {
+            throw new ObjectNotValidException("Peage Obligatoire");
+        }
+
+        if (fdm.getLaisserPasser() == null || fdm.getLaisserPasser() < 0) {
+            throw new ObjectNotValidException("Laisser passer Obligatoire");
+        }
+
+        if (fdm.getBonEssence() == null || fdm.getBonEssence() < 0) {
+            throw new ObjectNotValidException("Bon essence Obligatoire");
+        }
+
+        if (fdm.getHotel() == null || fdm.getHotel() < 0) {
+            throw new ObjectNotValidException("Hotel Obligatoire");
+        }
+
+        if (fdm.getDivers() == null || fdm.getDivers() < 0) {
+            throw new ObjectNotValidException("Divers Obligatoire");
+        }
+
+        if (fdm.getDateDepart() == null || fdm.getDateDepart().isBefore(LocalDate.now())) {
+            throw new ObjectNotValidException("Date départ erreur");
+        }
+
+        if (fdm.getDateProbableRetour() == null) {
+            throw new ObjectNotValidException("Date probable retour erreur");
+        }
+
+        if (fdm.getDateDepart().isAfter(fdm.getDateProbableRetour())) {
+            throw new ObjectNotValidException("Date erreur");
+        }
+    }
+
     public static int calculerDuree(LocalDate depart, LocalDate arrivee) {
         if (depart.isEqual(arrivee)) {
-            return 1; // Même jour, durée 1
+            return 1;
         } else {
-            // Calcul de la différence en jours
             return (int) Duration.between(depart.atStartOfDay(), arrivee.atStartOfDay()).toDays();
         }
     }
@@ -454,7 +463,6 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
         }
 
         try {
-            // Vérifier que la FDM existe
             Optional<FicheDescriptiveMission> fdmOpt = ficheDescriptiveMissionDao.findByReference(reference);
             if (fdmOpt.isEmpty()) {
                 throw new ObjectNotValidException("FDM avec la référence " + reference + " non trouvée");
@@ -462,10 +470,9 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
 
             FicheDescriptiveMission fdm = fdmOpt.get();
 
-            // Créer ou récupérer la PieceJointe associée à cette FDM
             List<PieceJointe> existingPieceJointes = pieceJointeDao.findByParentReferenceAndParentType(reference, "FDM");
             PieceJointe pieceJointe;
-            
+
             if (!existingPieceJointes.isEmpty()) {
                 pieceJointe = existingPieceJointes.get(0);
             } else {
@@ -476,26 +483,21 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
                 pieceJointe = pieceJointeDao.save(pieceJointe);
             }
 
-            // Uploader chaque fichier
             int successCount = 0;
             for (MultipartFile file : files) {
                 if (file.isEmpty()) continue;
 
                 try {
-                    // Uploader le fichier via StorageService
                     ResponseModel storageResponse = storageService.store(file);
-                    
+
                     if (storageResponse.getCode() == 200) {
-                        // Créer une entrée FileData pour le fichier
                         FileData fileData = new FileData();
                         fileData.setOldName(file.getOriginalFilename());
                         fileData.setType(file.getContentType());
                         fileData.setSize(file.getSize());
-                        // Le chemin est généralement défini par le StorageService
                         fileData.setFilePath(file.getOriginalFilename());
                         fileData = fileDataDao.save(fileData);
 
-                        // Lier le FileData à la PieceJointe
                         FileDataPieceJointe link = new FileDataPieceJointe();
                         link.setFileData(fileData);
                         link.setPieceJointe(pieceJointe);
@@ -504,7 +506,6 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
                         successCount++;
                     }
                 } catch (Exception e) {
-                    // Continuer avec le fichier suivant
                     System.err.println("Erreur lors de l'upload du fichier " + file.getOriginalFilename() + ": " + e.getMessage());
                 }
             }

@@ -64,7 +64,6 @@ public class DemandeAchatService implements DemandeAchatInterface {
 
         demandeDachat.setEmetteur(emetteur.get());
         demandeDachat.setTypeProcessus(typeProcessus.get());
-        // Le prixTotal, prixTotalEffectif, TVA et TTC sont calculés automatiquement par @PrePersist
 
         List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode(PROCESS_CODE);
         if (validateurList.isEmpty()) {
@@ -73,22 +72,19 @@ public class DemandeAchatService implements DemandeAchatInterface {
 
         Validateur premierValidateur = validateurList.getFirst();
         demandeDachat.setDateEmission(LocalDateTime.now());
+        String emetteurNom = emetteur.get().getLastName() + " " + emetteur.get().getName();
 
         DemandeDachat saved;
 
-        // Sauvegarder d'abord la demande pour avoir un ID
         demandeDachat.setValidateurSuivant(premierValidateur);
         saved = demandeRepo.save(demandeDachat);
 
-        // Sauvegarder les lignes
         for (LigneDemandeAchat ligne : demandeDachat.getLignes()) {
             ligne.setDemandeDachat(saved);
             ligneRepo.save(ligne);
         }
 
-        // Auto-validation si l'émetteur est le premier validateur
         if (premierValidateur.getUser().getId().equals(emetteur.get().getId())) {
-            // Créer un traitement auto-validé
             TraitementDemandeDachat autoTraitement = new TraitementDemandeDachat();
             autoTraitement.setDemandeDachat(saved);
             autoTraitement.setTraiteur(emetteur.get());
@@ -99,7 +95,6 @@ public class DemandeAchatService implements DemandeAchatInterface {
 
             saved.setTraitementPrecedent(autoTraitement);
 
-            // Passer au validateur suivant
             Optional<Validateur> nextValidateur = validateurList.stream()
                     .filter(v -> v.getOrdre() > premierValidateur.getOrdre())
                     .min((v1, v2) -> Integer.compare(v1.getOrdre(), v2.getOrdre()));
@@ -107,26 +102,27 @@ public class DemandeAchatService implements DemandeAchatInterface {
             if (nextValidateur.isPresent()) {
                 saved.setValidateurSuivant(nextValidateur.get());
                 demandeRepo.save(saved);
-                emailService.sendMailNewFdm(
+                emailService.sendMailNewDemande(
                         nextValidateur.get().getUser().getEmail(),
-                        saved.getId().toString(),
-                        emetteur.get().getEmail()
+                        PROCESS_CODE,
+                        saved.getReference(),
+                        emetteurNom
                 );
             } else {
-                // Pas de validateur suivant, demande approuvée
                 saved.setTraite(true);
                 saved.setFavorable(true);
                 saved.setValidateurSuivant(null);
                 demandeRepo.save(saved);
-                emailService.sendMailNewFdm(
-                        emetteur.get().getEmail(),
-                        saved.getId().toString(),
-                        "Votre demande d'achat a été auto-approuvée"
-                );
+                emailService.sendMailApprobation(emetteur.get().getEmail(), PROCESS_CODE, saved.getReference());
+                notifyComptables(saved.getReference(), emetteurNom);
             }
         } else {
-            // Processus normal
-            emailService.sendMailNewFdm(saved.getValidateurSuivant().getUser().getEmail(), saved.getId().toString(), emetteur.get().getEmail());
+            emailService.sendMailNewDemande(
+                    saved.getValidateurSuivant().getUser().getEmail(),
+                    PROCESS_CODE,
+                    saved.getReference(),
+                    emetteurNom
+            );
         }
 
         return new ResponseConstant().ok(saved);
@@ -163,7 +159,6 @@ public class DemandeAchatService implements DemandeAchatInterface {
                 ligne.setDemandeDachat(entity);
                 ligneRepo.save(ligne);
             }
-            // Le prixTotal, prixTotalEffectif, TVA et TTC sont calculés automatiquement par @PreUpdate
         }
 
         demandeRepo.save(entity);
@@ -239,6 +234,9 @@ public class DemandeAchatService implements DemandeAchatInterface {
         demande.setTraitementPrecedent(traitement);
 
         List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode(PROCESS_CODE);
+        String currentUserNom = currentUser.getLastName() + " " + currentUser.getName();
+        String emetteurNom = demande.getEmetteur().getLastName() + " " + demande.getEmetteur().getName();
+
         if (decision == Choix_decisions.VALIDER) {
             Optional<Validateur> next = validateurList.stream()
                     .filter(v -> v.getOrdre() > validateurSuivant.getOrdre())
@@ -246,51 +244,126 @@ public class DemandeAchatService implements DemandeAchatInterface {
 
             if (next.isPresent()) {
                 demande.setValidateurSuivant(next.get());
-                emailService.sendMailNewFdm(next.get().getUser().getEmail(), demande.getId().toString(), demande.getEmetteur().getEmail());
+                emailService.sendMailNewDemande(
+                        next.get().getUser().getEmail(),
+                        PROCESS_CODE,
+                        demande.getReference(),
+                        emetteurNom
+                );
             } else {
                 demande.setTraite(true);
                 demande.setFavorable(true);
                 demande.setValidateurSuivant(null);
-                emailService.sendMailNewFdm(
-                        demande.getEmetteur().getEmail(),
-                        demande.getId().toString(),
-                        "Votre demande d'achat a été approuvée"
-                );
+                emailService.sendMailApprobation(demande.getEmetteur().getEmail(), PROCESS_CODE, demande.getReference());
+                notifyComptables(demande.getReference(), emetteurNom);
             }
         } else if (decision == Choix_decisions.REJETER) {
             demande.setTraite(true);
             demande.setFavorable(false);
             demande.setValidateurSuivant(null);
-            emailService.sendMailNewFdm(
+
+            emailService.sendMailRejet(
                     demande.getEmetteur().getEmail(),
-                    demande.getId().toString(),
-                    "Votre demande d'achat a été rejetée: " + commentaire
+                    PROCESS_CODE,
+                    demande.getReference(),
+                    currentUserNom,
+                    commentaire
             );
+
+            notifyPreviousValidatorsOnRejection(demande, currentUser, commentaire);
         } else if (decision == Choix_decisions.A_CORRIGER) {
             demande.setTraite(false);
-            Optional<Validateur> previous = validateurRepository.findPreviousValidator(
-                    demande.getTypeProcessus().getId(),
-                    validateurSuivant.getOrdre()
-            );
+            Validateur validateurActuel = demande.getValidateurSuivant();
 
-            previous.ifPresentOrElse(
-                    demande::setValidateurSuivant,
-                    () -> {
-                        if (!validateurList.isEmpty()) {
-                            demande.setValidateurSuivant(validateurList.getFirst());
-                        }
+            Validateur premierValidateur = validateurList.isEmpty() ? null : validateurList.getFirst();
+
+            if (premierValidateur != null && validateurActuel.getId().equals(premierValidateur.getId())) {
+                demande.setValidateurSuivant(null);
+                emailService.sendMailCorrection(
+                        demande.getEmetteur().getEmail(),
+                        PROCESS_CODE,
+                        demande.getReference(),
+                        commentaire
+                );
+            } else {
+                Optional<Validateur> previous = validateurRepository.findPreviousValidator(
+                        demande.getTypeProcessus().getId(),
+                        validateurActuel.getOrdre()
+                );
+
+                if (previous.isPresent()) {
+                    if (previous.get().getUser().getId().equals(demande.getEmetteur().getId())) {
+                        demande.setValidateurSuivant(null);
+                        emailService.sendMailCorrection(
+                                demande.getEmetteur().getEmail(),
+                                PROCESS_CODE,
+                                demande.getReference(),
+                                commentaire
+                        );
+                    } else {
+                        demande.setValidateurSuivant(previous.get());
+                        emailService.sendMailCorrection(
+                                previous.get().getUser().getEmail(),
+                                PROCESS_CODE,
+                                demande.getReference(),
+                                commentaire
+                        );
+                        emailService.sendMailCorrection(
+                                demande.getEmetteur().getEmail(),
+                                PROCESS_CODE,
+                                demande.getReference(),
+                                commentaire
+                        );
                     }
-            );
-
-            emailService.sendMailNewFdm(
-                    demande.getEmetteur().getEmail(),
-                    demande.getId().toString(),
-                    "Votre demande d'achat nécessite des corrections: " + commentaire
-            );
+                } else {
+                    demande.setValidateurSuivant(null);
+                    emailService.sendMailCorrection(
+                            demande.getEmetteur().getEmail(),
+                            PROCESS_CODE,
+                            demande.getReference(),
+                            commentaire
+                    );
+                }
+            }
         }
 
         demandeRepo.save(demande);
         return new ResponseConstant().ok("Traitement effectué avec succès");
+    }
+
+    /**
+     * Notifier tous les comptables d'une demande approuvée
+     */
+    private void notifyComptables(String reference, String emetteurNom) {
+        List<User> comptables = userRepository.findAllComptables();
+        for (User comptable : comptables) {
+            emailService.sendMailComptable(
+                    comptable.getEmail(),
+                    PROCESS_CODE,
+                    reference,
+                    emetteurNom
+            );
+        }
+    }
+
+    /**
+     * Notifier tous les validateurs précédents lors d'un rejet
+     */
+    private void notifyPreviousValidatorsOnRejection(DemandeDachat demande, User rejeteur, String raison) {
+        List<TraitementDemandeDachat> traitements = traitementRepo.findByDemandeDachatId(demande.getId());
+        String rejeteurNom = rejeteur.getLastName() + " " + rejeteur.getName();
+
+        for (TraitementDemandeDachat t : traitements) {
+            if (t.getTraiteur() != null && !t.getTraiteur().getId().equals(rejeteur.getId())) {
+                emailService.sendMailRejet(
+                        t.getTraiteur().getEmail(),
+                        PROCESS_CODE,
+                        demande.getReference(),
+                        rejeteurNom,
+                        raison
+                );
+            }
+        }
     }
 
     private void validateDemande(DemandeDachat demande) {
@@ -309,20 +382,6 @@ public class DemandeAchatService implements DemandeAchatInterface {
         demande.setMontantProjet(normalize(demande.getMontantProjet()));
     }
 
-    private double calculerTotal(List<LigneDemandeAchat> lignes) {
-        return lignes.stream()
-                .mapToDouble(ligne -> {
-                    if (ligne.getPrixUnitaire() == null || ligne.getPrixUnitaire() < 0) {
-                        throw new ObjectNotValidException("Prix unitaire invalide");
-                    }
-                    if (ligne.getQuantite() == null || ligne.getQuantite() <= 0) {
-                        throw new ObjectNotValidException("Quantité invalide");
-                    }
-                    return ligne.getPrixUnitaire() * ligne.getQuantite();
-                })
-                .sum();
-    }
-
     private double normalize(Double value) {
         return value == null || value < 0 ? 0d : value;
     }
@@ -338,8 +397,6 @@ public class DemandeAchatService implements DemandeAchatInterface {
             throw new ObjectNotValidException("La demande doit être approuvée pour générer un bon de commande");
         }
 
-        // TODO: Implémenter la génération PDF du bon de commande avec iText ou autre
-        // Pour l'instant, on marque juste que le bon de commande est généré
         demande.setFichierBonCommande("bon_commande_" + demande.getId() + "_" + System.currentTimeMillis() + ".pdf");
         demandeRepo.save(demande);
 

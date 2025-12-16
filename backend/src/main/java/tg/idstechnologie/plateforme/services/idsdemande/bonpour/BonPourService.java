@@ -33,6 +33,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class BonPourService implements BonPourInterface {
 
+    private static final String PROCESS_CODE = "BONPOUR";
+
     private final BonPourRepository bonPourDao;
     private final LigneBonPourRepository ligneBonPourDao;
     private final TraitementBonPourRepository traitementBonPourDao;
@@ -44,35 +46,14 @@ public class BonPourService implements BonPourInterface {
 
     @Override
     public ResponseModel createEntity(BonPour bonPour) {
-
-        if (bonPour.getBeneficiaire() == null || bonPour.getBeneficiaire().isEmpty() || bonPour.getBeneficiaire().isBlank()) {
-            throw new ObjectNotValidException("Bénéficiaire obligatoire");
-        }
-
-        if (bonPour.getMotif() == null || bonPour.getMotif().isEmpty() || bonPour.getMotif().isBlank()) {
-            throw new ObjectNotValidException("Motif obligatoire");
-        }
-
-        if (bonPour.getLignes() == null || bonPour.getLignes().isEmpty()) {
-            throw new ObjectNotValidException("Au moins une ligne est obligatoire");
-        }
-
-        // Validate each line
-        for (LigneBonPour ligne : bonPour.getLignes()) {
-            if (ligne.getLibelle() == null || ligne.getLibelle().isEmpty() || ligne.getLibelle().isBlank()) {
-                throw new ObjectNotValidException("Libellé de ligne obligatoire");
-            }
-            if (ligne.getMontant() == null || ligne.getMontant() < 0) {
-                throw new ObjectNotValidException("Montant de ligne obligatoire et doit être positif");
-            }
-        }
+        validateBonPour(bonPour);
 
         Optional<User> emetteur = userRepository.findByReference(currentUserService.getCurrentUserRef());
         if (emetteur.isEmpty()) {
             throw new ObjectNotValidException("Utilisateur obligatoire");
         }
 
-        Optional<TypeProcessus> typeProcessus = typeProcessusRepository.findByCode("BONPOUR");
+        Optional<TypeProcessus> typeProcessus = typeProcessusRepository.findByCode(PROCESS_CODE);
         if (typeProcessus.isEmpty()) {
             throw new ObjectNotValidException("Type de processus BONPOUR introuvable");
         }
@@ -80,34 +61,30 @@ public class BonPourService implements BonPourInterface {
         bonPour.setEmetteur(emetteur.get());
         bonPour.setTypeProcessus(typeProcessus.get());
 
-        // Calculate total from lines
         double montantTotal = bonPour.getLignes().stream()
                 .mapToDouble(LigneBonPour::getMontant)
                 .sum();
         bonPour.setMontantTotal(montantTotal);
 
-        List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode("BONPOUR");
+        List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode(PROCESS_CODE);
+        String emetteurNom = emetteur.get().getLastName() + " " + emetteur.get().getName();
+
         if (!validateurList.isEmpty()) {
             Validateur premierValidateur = validateurList.getFirst();
             bonPour.setDateEmission(LocalDateTime.now());
 
-            // Check if emetteur is the first validator (auto-validation)
             if (premierValidateur.getUser().getId().equals(emetteur.get().getId())) {
-                // Auto-validation: emetteur is the first validator
                 bonPour.setTraite(true);
                 bonPour.setFavorable(true);
                 bonPour.setValidateurSuivant(null);
 
-                // Save BonPour first
                 BonPour savedBonPour = bonPourDao.save(bonPour);
 
-                // Associate and save each ligne with the BonPour
                 for (LigneBonPour ligne : bonPour.getLignes()) {
                     ligne.setBonPour(savedBonPour);
                     ligneBonPourDao.save(ligne);
                 }
 
-                // Create automatic treatment record
                 TraitementBonPour autoTraitement = new TraitementBonPour();
                 autoTraitement.setBonPour(savedBonPour);
                 autoTraitement.setTraiteur(emetteur.get());
@@ -119,21 +96,26 @@ public class BonPourService implements BonPourInterface {
                 savedBonPour.setTraitementPrecedent(autoTraitement);
                 bonPourDao.save(savedBonPour);
 
+                emailService.sendMailApprobation(emetteur.get().getEmail(), PROCESS_CODE, savedBonPour.getReference());
+                notifyComptables(savedBonPour.getReference(), emetteurNom);
+
                 return new ResponseConstant().ok(savedBonPour);
             } else {
-                // Normal flow: send to first validator
                 bonPour.setValidateurSuivant(premierValidateur);
 
-                // Save BonPour first
                 BonPour savedBonPour = bonPourDao.save(bonPour);
 
-                // Associate and save each ligne with the BonPour
                 for (LigneBonPour ligne : bonPour.getLignes()) {
                     ligne.setBonPour(savedBonPour);
                     ligneBonPourDao.save(ligne);
                 }
 
-                emailService.sendMailNewFdm(premierValidateur.getUser().getEmail(), savedBonPour.getId().toString(), emetteur.get().getEmail());
+                emailService.sendMailNewDemande(
+                        premierValidateur.getUser().getEmail(),
+                        PROCESS_CODE,
+                        savedBonPour.getReference(),
+                        emetteurNom
+                );
 
                 return new ResponseConstant().ok(savedBonPour);
             }
@@ -148,13 +130,7 @@ public class BonPourService implements BonPourInterface {
             throw new ObjectNotValidException("Référence obligatoire pour la modification");
         }
 
-        if (bonPour.getBeneficiaire() == null || bonPour.getBeneficiaire().isEmpty() || bonPour.getBeneficiaire().isBlank()) {
-            throw new ObjectNotValidException("Bénéficiaire obligatoire");
-        }
-
-        if (bonPour.getMotif() == null || bonPour.getMotif().isEmpty() || bonPour.getMotif().isBlank()) {
-            throw new ObjectNotValidException("Motif obligatoire");
-        }
+        validateBonPour(bonPour);
 
         Optional<User> emetteur = userRepository.findByReference(currentUserService.getCurrentUserRef());
         if (emetteur.isEmpty()) {
@@ -165,12 +141,10 @@ public class BonPourService implements BonPourInterface {
         if (result.isPresent()) {
             BonPour item = result.get();
 
-            // Check if user is the emetteur
             if (!item.getEmetteur().getId().equals(emetteur.get().getId())) {
                 throw new ObjectNotValidException("Seul l'émetteur peut modifier le bon pour");
             }
 
-            // Check if BonPour is already in validation process
             if (item.getValidateurSuivant() != null || item.isTraite()) {
                 throw new ObjectNotValidException("Impossible de modifier un bon pour en cours de validation");
             }
@@ -178,16 +152,13 @@ public class BonPourService implements BonPourInterface {
             item.setBeneficiaire(bonPour.getBeneficiaire());
             item.setMotif(bonPour.getMotif());
 
-            // Update lines if provided
             if (bonPour.getLignes() != null && !bonPour.getLignes().isEmpty()) {
-                // Delete old lines
                 List<LigneBonPour> oldLignes = ligneBonPourDao.findByBonPourId(item.getId());
                 for (LigneBonPour oldLigne : oldLignes) {
                     oldLigne.setDelete(true);
                     ligneBonPourDao.save(oldLigne);
                 }
 
-                // Add new lines
                 for (LigneBonPour ligne : bonPour.getLignes()) {
                     if (ligne.getLibelle() == null || ligne.getLibelle().isEmpty() || ligne.getLibelle().isBlank()) {
                         throw new ObjectNotValidException("Libellé de ligne obligatoire");
@@ -199,26 +170,23 @@ public class BonPourService implements BonPourInterface {
                     ligneBonPourDao.save(ligne);
                 }
 
-                // Recalculate total
                 double montantTotal = bonPour.getLignes().stream()
                         .mapToDouble(LigneBonPour::getMontant)
                         .sum();
                 item.setMontantTotal(montantTotal);
             }
 
-            // Re-enter validation circuit after modification
-            List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode("BONPOUR");
+            List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode(PROCESS_CODE);
+            String emetteurNom = emetteur.get().getLastName() + " " + emetteur.get().getName();
+
             if (!validateurList.isEmpty()) {
                 Validateur premierValidateur = validateurList.getFirst();
 
-                // Check if emetteur is the first validator (auto-validation)
                 if (premierValidateur.getUser().getId().equals(emetteur.get().getId())) {
-                    // Auto-validation: emetteur is the first validator
                     item.setTraite(true);
                     item.setFavorable(true);
                     item.setValidateurSuivant(null);
 
-                    // Create automatic treatment record
                     TraitementBonPour autoTraitement = new TraitementBonPour();
                     autoTraitement.setBonPour(item);
                     autoTraitement.setTraiteur(emetteur.get());
@@ -228,13 +196,16 @@ public class BonPourService implements BonPourInterface {
                     traitementBonPourDao.save(autoTraitement);
 
                     item.setTraitementPrecedent(autoTraitement);
+
+                    emailService.sendMailApprobation(emetteur.get().getEmail(), PROCESS_CODE, item.getReference());
+                    notifyComptables(item.getReference(), emetteurNom);
                 } else {
-                    // Normal flow: send to first validator
                     item.setValidateurSuivant(premierValidateur);
-                    emailService.sendMailNewFdm(
+                    emailService.sendMailNewDemande(
                             premierValidateur.getUser().getEmail(),
-                            item.getId().toString(),
-                            "Bon pour corrigé par " + emetteur.get().getEmail()
+                            PROCESS_CODE,
+                            item.getReference(),
+                            emetteurNom + " (corrigé)"
                     );
                 }
             }
@@ -307,7 +278,6 @@ public class BonPourService implements BonPourInterface {
             throw new ObjectNotValidException("Vous n'êtes pas autorisé à traiter cette demande");
         }
 
-        // Create treatment record
         TraitementBonPour traitement = new TraitementBonPour();
         traitement.setBonPour(bonPour);
         traitement.setTraiteur(currentUser);
@@ -320,92 +290,164 @@ public class BonPourService implements BonPourInterface {
         bonPour.setTraitementPrecedent(traitement);
 
         List<Validateur> validateurList = validateurRepository.handleValidatorByProcessCode(bonPour.getTypeProcessus().getCode());
+        String currentUserNom = currentUser.getLastName() + " " + currentUser.getName();
+        String emetteurNom = bonPour.getEmetteur().getLastName() + " " + bonPour.getEmetteur().getName();
 
         if (decision == Choix_decisions.VALIDER) {
             Validateur validateurActuel = bonPour.getValidateurSuivant();
 
-            // Find next validator
             Optional<Validateur> nextValidateur = validateurList.stream()
                     .filter(v -> v.getOrdre() > validateurActuel.getOrdre())
                     .min((v1, v2) -> Integer.compare(v1.getOrdre(), v2.getOrdre()));
 
             if (nextValidateur.isPresent()) {
                 bonPour.setValidateurSuivant(nextValidateur.get());
-                emailService.sendMailNewFdm(
+                emailService.sendMailNewDemande(
                         nextValidateur.get().getUser().getEmail(),
-                        bonPour.getId().toString(),
-                        bonPour.getEmetteur().getEmail()
+                        PROCESS_CODE,
+                        bonPour.getReference(),
+                        emetteurNom
                 );
             } else {
-                // Last validator - approve request
                 bonPour.setTraite(true);
                 bonPour.setFavorable(true);
                 bonPour.setValidateurSuivant(null);
-                emailService.sendMailNewFdm(
-                        bonPour.getEmetteur().getEmail(),
-                        bonPour.getId().toString(),
-                        "Votre bon pour a été approuvé par tous les validateurs"
-                );
+                emailService.sendMailApprobation(bonPour.getEmetteur().getEmail(), PROCESS_CODE, bonPour.getReference());
+                notifyComptables(bonPour.getReference(), emetteurNom);
             }
         } else if (decision == Choix_decisions.REJETER) {
             bonPour.setTraite(true);
             bonPour.setFavorable(false);
             bonPour.setValidateurSuivant(null);
 
-            // Notify emetteur about rejection
-            emailService.sendMailNewFdm(
+            emailService.sendMailRejet(
                     bonPour.getEmetteur().getEmail(),
-                    bonPour.getId().toString(),
-                    "Votre bon pour a été rejeté par " + currentUser.getLastName() + " " + currentUser.getName() + ": " + commentaire
+                    PROCESS_CODE,
+                    bonPour.getReference(),
+                    currentUserNom,
+                    commentaire
             );
 
-            // Notify all previous validators about rejection
-            List<TraitementBonPour> previousTraitements = traitementBonPourDao.findByBonPourId(bonPour.getId());
-            for (TraitementBonPour previousTraitement : previousTraitements) {
-                if (previousTraitement.getTraiteur() != null &&
-                    !previousTraitement.getTraiteur().getId().equals(currentUser.getId())) {
-                    emailService.sendMailNewFdm(
-                            previousTraitement.getTraiteur().getEmail(),
-                            bonPour.getId().toString(),
-                            "Le bon pour que vous avez validé a été rejeté par " + currentUser.getLastName() + " " + currentUser.getName()
-                    );
-                }
-            }
+            notifyPreviousValidatorsOnRejection(bonPour, currentUser, commentaire);
         } else if (decision == Choix_decisions.A_CORRIGER) {
             bonPour.setTraite(false);
             Validateur validateurActuel = bonPour.getValidateurSuivant();
 
-            // Find previous validator to return the request
-            Optional<Validateur> previousValidateur = validateurRepository.findPreviousValidator(
-                    bonPour.getTypeProcessus().getId(),
-                    validateurActuel.getOrdre()
-            );
+            Validateur premierValidateur = validateurList.isEmpty() ? null : validateurList.getFirst();
 
-            if (previousValidateur.isPresent()) {
-                // Return to previous validator
-                bonPour.setValidateurSuivant(previousValidateur.get());
-                emailService.sendMailNewFdm(
-                        previousValidateur.get().getUser().getEmail(),
-                        bonPour.getId().toString(),
-                        "Bon pour retourné pour correction par " + currentUser.getLastName() + " " + currentUser.getName()
+            if (premierValidateur != null && validateurActuel.getId().equals(premierValidateur.getId())) {
+                bonPour.setValidateurSuivant(null);
+                emailService.sendMailCorrection(
+                        bonPour.getEmetteur().getEmail(),
+                        PROCESS_CODE,
+                        bonPour.getReference(),
+                        commentaire
                 );
             } else {
-                // No previous validator, return to first validator
-                if (!validateurList.isEmpty()) {
-                    bonPour.setValidateurSuivant(validateurList.getFirst());
+                Optional<Validateur> previousValidateur = validateurRepository.findPreviousValidator(
+                        bonPour.getTypeProcessus().getId(),
+                        validateurActuel.getOrdre()
+                );
+
+                if (previousValidateur.isPresent()) {
+                    if (previousValidateur.get().getUser().getId().equals(bonPour.getEmetteur().getId())) {
+                        bonPour.setValidateurSuivant(null);
+                        emailService.sendMailCorrection(
+                                bonPour.getEmetteur().getEmail(),
+                                PROCESS_CODE,
+                                bonPour.getReference(),
+                                commentaire
+                        );
+                    } else {
+                        bonPour.setValidateurSuivant(previousValidateur.get());
+                        emailService.sendMailCorrection(
+                                previousValidateur.get().getUser().getEmail(),
+                                PROCESS_CODE,
+                                bonPour.getReference(),
+                                commentaire
+                        );
+                        emailService.sendMailCorrection(
+                                bonPour.getEmetteur().getEmail(),
+                                PROCESS_CODE,
+                                bonPour.getReference(),
+                                commentaire
+                        );
+                    }
+                } else {
+                    bonPour.setValidateurSuivant(null);
+                    emailService.sendMailCorrection(
+                            bonPour.getEmetteur().getEmail(),
+                            PROCESS_CODE,
+                            bonPour.getReference(),
+                            commentaire
+                    );
                 }
             }
-
-            // Notify emetteur
-            emailService.sendMailNewFdm(
-                    bonPour.getEmetteur().getEmail(),
-                    bonPour.getId().toString(),
-                    "Votre bon pour nécessite des corrections: " + commentaire
-            );
         }
 
         bonPourDao.save(bonPour);
 
         return new ResponseConstant().ok("Traitement effectué avec succès");
+    }
+
+    /**
+     * Notifier tous les comptables d'une demande approuvée
+     */
+    private void notifyComptables(String reference, String emetteurNom) {
+        List<User> comptables = userRepository.findAllComptables();
+        for (User comptable : comptables) {
+            emailService.sendMailComptable(
+                    comptable.getEmail(),
+                    PROCESS_CODE,
+                    reference,
+                    emetteurNom
+            );
+        }
+    }
+
+    /**
+     * Notifier tous les validateurs précédents lors d'un rejet
+     */
+    private void notifyPreviousValidatorsOnRejection(BonPour bonPour, User rejeteur, String raison) {
+        List<TraitementBonPour> traitements = traitementBonPourDao.findByBonPourId(bonPour.getId());
+        String rejeteurNom = rejeteur.getLastName() + " " + rejeteur.getName();
+
+        for (TraitementBonPour t : traitements) {
+            if (t.getTraiteur() != null && !t.getTraiteur().getId().equals(rejeteur.getId())) {
+                emailService.sendMailRejet(
+                        t.getTraiteur().getEmail(),
+                        PROCESS_CODE,
+                        bonPour.getReference(),
+                        rejeteurNom,
+                        raison
+                );
+            }
+        }
+    }
+
+    /**
+     * Valider les champs obligatoires d'un BonPour
+     */
+    private void validateBonPour(BonPour bonPour) {
+        if (bonPour.getBeneficiaire() == null || bonPour.getBeneficiaire().isEmpty() || bonPour.getBeneficiaire().isBlank()) {
+            throw new ObjectNotValidException("Bénéficiaire obligatoire");
+        }
+
+        if (bonPour.getMotif() == null || bonPour.getMotif().isEmpty() || bonPour.getMotif().isBlank()) {
+            throw new ObjectNotValidException("Motif obligatoire");
+        }
+
+        if (bonPour.getLignes() == null || bonPour.getLignes().isEmpty()) {
+            throw new ObjectNotValidException("Au moins une ligne est obligatoire");
+        }
+
+        for (LigneBonPour ligne : bonPour.getLignes()) {
+            if (ligne.getLibelle() == null || ligne.getLibelle().isEmpty() || ligne.getLibelle().isBlank()) {
+                throw new ObjectNotValidException("Libellé de ligne obligatoire");
+            }
+            if (ligne.getMontant() == null || ligne.getMontant() < 0) {
+                throw new ObjectNotValidException("Montant de ligne obligatoire et doit être positif");
+            }
+        }
     }
 }

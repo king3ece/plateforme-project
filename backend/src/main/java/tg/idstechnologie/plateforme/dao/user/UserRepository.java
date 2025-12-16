@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import tg.idstechnologie.plateforme.secu.user.User;
 import tg.idstechnologie.plateforme.secu.user.Role;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -50,4 +51,30 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * Récupère un user par son activation token
      */
     Optional<User> findByActivationToken(String activationToken);
+
+    /**
+     * Récupère tous les utilisateurs comptables actifs
+     */
+    @Query(value = """
+        SELECT * FROM _users
+        WHERE is_delete = false
+        AND is_comptable = true
+        AND is_enable = true
+        """,
+        nativeQuery = true
+    )
+    List<User> findAllComptables();
+
+    /**
+     * Récupère tous les utilisateurs gestionnaires de stock actifs
+     */
+    @Query(value = """
+        SELECT * FROM _users
+        WHERE is_delete = false
+        AND is_gestock = true
+        AND is_enable = true
+        """,
+        nativeQuery = true
+    )
+    List<User> findAllGestock();
 }
