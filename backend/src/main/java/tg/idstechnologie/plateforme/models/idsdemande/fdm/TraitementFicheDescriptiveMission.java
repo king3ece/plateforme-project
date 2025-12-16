@@ -1,5 +1,6 @@
 package tg.idstechnologie.plateforme.models.idsdemande.fdm;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -21,6 +22,7 @@ public class TraitementFicheDescriptiveMission extends BaseTraitement {
 
     @ManyToOne
     @JoinColumn(name = "fiche_descriptive_mission_id")
+    @JsonBackReference
     private FicheDescriptiveMission ficheDescriptiveDeMission;
 
     @ManyToOne

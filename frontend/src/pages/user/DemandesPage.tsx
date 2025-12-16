@@ -14,10 +14,12 @@ import { Badge } from "../../components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { FicheDescriptiveMissionAPI } from "../../api/fdm";
 import { BonPourAPI } from "../../api/bonpour";
@@ -63,6 +65,9 @@ export const FDMPage = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailType, setDetailType] = useState<RequestDetailType>("FDM");
   const [detailData, setDetailData] = useState<RequestDetailData | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ type: RequestTab; reference: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -94,6 +99,61 @@ export const FDMPage = () => {
     setIsDetailOpen(true);
   };
 
+  const refreshData = async () => {
+    try {
+      const [fdmData, bonPourData, rapportData, ddaData] = await Promise.all([
+        FicheDescriptiveMissionAPI.getMyRequests(),
+        BonPourAPI.getMyRequests(),
+        RapportFinancierAPI.getMyRequests(),
+        DemandeAchatAPI.getMyRequests(),
+      ]);
+      setFdms(fdmData);
+      setBonpours(bonPourData);
+      setRapports(rapportData);
+      setDdas(ddaData);
+    } catch (error) {
+      console.error("Erreur rechargement demandes:", error);
+      toast.error("Erreur lors du rechargement des demandes");
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      switch (itemToDelete.type) {
+        case "FDM":
+          await FicheDescriptiveMissionAPI.delete(itemToDelete.reference);
+          break;
+        case "BONPOUR":
+          await BonPourAPI.delete(itemToDelete.reference);
+          break;
+        case "DDA":
+          await DemandeAchatAPI.delete(itemToDelete.reference);
+          break;
+        case "RFDM":
+          await RapportFinancierAPI.delete(itemToDelete.reference);
+          break;
+      }
+
+      toast.success("Demande supprimée avec succès");
+      setDeleteDialogOpen(false);
+      setItemToDelete(null);
+      await refreshData();
+    } catch (error) {
+      console.error("Erreur suppression:", error);
+      toast.error("Erreur lors de la suppression de la demande");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteDialog = (type: RequestTab, reference: string) => {
+    setItemToDelete({ type, reference });
+    setDeleteDialogOpen(true);
+  };
+
   const renderFdmRows = () =>
     fdms.map((fdm) => (
       <TableRow key={fdm.id}>
@@ -114,9 +174,25 @@ export const FDMPage = () => {
           </Badge>
         </TableCell>
         <TableCell className="text-right">
-          <Button variant="ghost" size="icon" onClick={() => openDetails("FDM", fdm)}>
-            <Eye className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="icon" onClick={() => openDetails("FDM", fdm)} title="Voir les détails">
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Link to={`/user/demandes/fdm/edit/${fdm.reference}`}>
+              <Button variant="ghost" size="icon" title="Modifier">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => openDeleteDialog("FDM", fdm.reference)}
+              title="Supprimer"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </TableCell>
       </TableRow>
     ));
@@ -136,9 +212,25 @@ export const FDMPage = () => {
           </Badge>
         </TableCell>
         <TableCell className="text-right">
-          <Button variant="ghost" size="icon" onClick={() => openDetails("BONPOUR", bonpour)}>
-            <Eye className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="icon" onClick={() => openDetails("BONPOUR", bonpour)} title="Voir les détails">
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Link to={`/user/demandes/bonpour/edit/${bonpour.reference}`}>
+              <Button variant="ghost" size="icon" title="Modifier">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => openDeleteDialog("BONPOUR", bonpour.reference)}
+              title="Supprimer"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </TableCell>
       </TableRow>
     ));
@@ -155,9 +247,25 @@ export const FDMPage = () => {
         </TableCell>
         <TableCell>{formatDecisionBadge(rapport.traitementPrecedent?.decision)}</TableCell>
         <TableCell className="text-right">
-          <Button variant="ghost" size="icon" onClick={() => openDetails("RFDM", rapport)}>
-            <Eye className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="icon" onClick={() => openDetails("RFDM", rapport)} title="Voir les détails">
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Link to={`/user/demandes/rfdm/edit/${rapport.reference}`}>
+              <Button variant="ghost" size="icon" title="Modifier">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => openDeleteDialog("RFDM", rapport.reference)}
+              title="Supprimer"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </TableCell>
       </TableRow>
     ));
@@ -172,9 +280,25 @@ export const FDMPage = () => {
         <TableCell>{formatCurrency(demande.prixTotal, "€")}</TableCell>
         <TableCell>{formatDecisionBadge(demande.traitementPrecedent?.decision)}</TableCell>
         <TableCell className="text-right">
-          <Button variant="ghost" size="icon" onClick={() => openDetails("DDA", demande)}>
-            <Eye className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="icon" onClick={() => openDetails("DDA", demande)} title="Voir les détails">
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Link to={`/user/demandes/dda/edit/${demande.reference}`}>
+              <Button variant="ghost" size="icon" title="Modifier">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => openDeleteDialog("DDA", demande.reference)}
+              title="Supprimer"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </TableCell>
       </TableRow>
     ));
@@ -289,6 +413,46 @@ export const FDMPage = () => {
           {detailData && (
             <RequestDetailContent type={detailType} data={detailData} />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette demande ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setItemToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Suppression...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

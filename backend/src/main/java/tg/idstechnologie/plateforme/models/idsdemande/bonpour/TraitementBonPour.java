@@ -1,5 +1,6 @@
 package tg.idstechnologie.plateforme.models.idsdemande.bonpour;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -21,6 +22,7 @@ public class TraitementBonPour extends BaseTraitement {
 
     @ManyToOne
     @JoinColumn(name = "bon_pour_id")
+    @JsonBackReference
     private BonPour bonPour;
 
     @ManyToOne

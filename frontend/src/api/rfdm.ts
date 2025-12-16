@@ -40,6 +40,13 @@ export const RapportFinancierAPI = {
     return response.data.object.content;
   },
 
+  getByRef: async (reference: string): Promise<RapportFinancierDeMission> => {
+    const response = await axiosInstance.get<ApiResponse<RapportFinancierDeMission>>(
+      `/rfdms/${reference}`
+    );
+    return response.data.object;
+  },
+
   create: async (data: CreateRapportFinancierRequest): Promise<RapportFinancierDeMission> => {
     const response = await axiosInstance.post<ApiResponse<RapportFinancierDeMission>>(
       "/rfdms/add-rfdm",
@@ -61,5 +68,9 @@ export const RapportFinancierAPI = {
     data: { decision: TraitementDecision; commentaire?: string }
   ): Promise<void> => {
     await axiosInstance.post<ApiResponse<string>>(`/rfdms/${id}/traiter`, data);
+  },
+
+  delete: async (reference: string): Promise<void> => {
+    await axiosInstance.delete<ApiResponse<void>>(`/rfdms/${reference}`);
   },
 };

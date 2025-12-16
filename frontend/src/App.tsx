@@ -10,6 +10,7 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { FDMPage } from "./pages/user/DemandesPage";
 // import { DemandesPage, FDMPage } from "./pages/user/DemandesPage";
 import { RequestPage } from "./pages/user/RequestPage";
+import { EditRequestPage } from "./pages/user/EditRequestPage";
 import { ValidationPage } from "./pages/user/ValidationPage";
 import { TraitementPage } from "./pages/user/TraitementPage";
 import { UsersPage } from "./pages/admin/UsersPage";
@@ -88,6 +89,7 @@ export default function App() {
             <Route index element={<UserDashboard />} />
             <Route path="demandes" element={<FDMPage />} />
             <Route path="demandes/new" element={<RequestPage />} />
+            <Route path="demandes/:type/edit/:reference" element={<EditRequestPage />} />
             <Route
               path="validations"
               element={

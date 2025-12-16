@@ -39,9 +39,9 @@ export interface UserDashboardStats {
 
 export const statisticsAPI = {
   getUserDashboardStats: async (): Promise<UserDashboardStats> => {
-    const response = await axiosInstance.get<{ data: UserDashboardStats }>(
+    const response = await axiosInstance.get<{ code: number; message: string; object: UserDashboardStats }>(
       "/statistics/user/dashboard"
     );
-    return response.data.data;
+    return response.data.object;
   },
 };

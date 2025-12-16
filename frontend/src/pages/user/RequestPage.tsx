@@ -79,9 +79,9 @@ export function RequestPage() {
       // Mapper le type de demande à l'endpoint API correct
       const typeMapping: Record<"FDM" | "RFDM" | "DDA" | "BONPOUR", string> = {
         FDM: "fdms",
-        RFDM: "rapportFinanciers",
+        RFDM: "rfmds",
         DDA: "ddas",
-        BONPOUR: "bonPours",
+        BONPOUR: "bonpours",
       };
 
       const endpoint = typeMapping[demandeType];

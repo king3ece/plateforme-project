@@ -81,7 +81,7 @@ export async function getMyValidatorRoles(): Promise<{
  */
 export async function getTotalPendingValidationsCount(): Promise<number> {
   try {
-    const types = ['fdms', 'bonPours', 'rapportFinanciers', 'ddas'];
+    const types = ['fdms', 'bonpours', 'rfdms', 'ddas'];
 
     const responses = await Promise.all(
       types.map(async (type) => {
@@ -190,9 +190,9 @@ function getValidationEndpoint(type: string): string {
     case 'fdm':
       return '/fdms';
     case 'bonpour':
-      return '/bonPours';
+      return '/bonpours';
     case 'rfdm':
-      return '/rapportFinanciers';
+      return '/rfdms';
     case 'dda':
       return '/ddas';
     default:
