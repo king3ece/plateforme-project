@@ -437,16 +437,36 @@ public class FicheDescriptiveMissionService   implements FicheDescriptiveMission
         Optional<Validateur> nextValidateur = getNextValidateur(validateurList, validateurActuel);
 
         if (nextValidateur.isPresent()) {
+            // Il y a encore un validateur suivant - la demande reste en cours
             fdm.setValidateurSuivant(nextValidateur.get());
+
+            // Notifier le prochain validateur
             notifyValidateur(nextValidateur.get(), fdm, "Vous avez une nouvelle fiche descriptive de mission en attente de traitement.");
+
+            // Notifier l'émetteur que sa demande progresse dans le circuit de validation
+            String validateurNom = validateurActuel.getUser() != null
+                ? validateurActuel.getUser().getLastName() + " " + validateurActuel.getUser().getName()
+                : "un validateur";
+
+            emailService.sendSimpleMail(
+                    fdm.getEmetteur().getEmail(),
+                    buildSubject(fdm, "En cours de validation"),
+                    String.format("Votre FDM a été validée par %s. Elle est toujours en cours de validation.", validateurNom)
+            );
         } else {
+            // Dernier validateur - la demande est complètement approuvée
             fdm.setTraite(true);
             fdm.setFavorable(true);
             fdm.setValidateurSuivant(null);
+
+            String validateurNom = validateurActuel.getUser() != null
+                ? validateurActuel.getUser().getLastName() + " " + validateurActuel.getUser().getName()
+                : "le dernier validateur";
+
             emailService.sendSimpleMail(
                     fdm.getEmetteur().getEmail(),
                     buildSubject(fdm, "Validée"),
-                    "Votre FDM a été approuvée."
+                    String.format("Votre FDM a été approuvée par %s. Elle est maintenant complètement validée.", validateurNom)
             );
             notifyComptables(fdm);
         }

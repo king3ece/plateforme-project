@@ -47,8 +47,17 @@ const STATUT_CONFIG: Record<
   A_CORRIGER: { variant: "default", label: "À corriger" },
 };
 
-const formatDecisionBadge = (decision?: TraitementDecision | null) => {
-  const key = decision ?? "EN_ATTENTE";
+/**
+ * Affiche le badge de statut d'une demande
+ * - Si la demande est traitée (traite=true), affiche le statut du traitement précédent
+ * - Sinon, affiche "En attente" même s'il y a eu des validations intermédiaires
+ */
+const formatDecisionBadge = (
+  decision?: TraitementDecision | null,
+  traite?: boolean
+) => {
+  // Si la demande n'est pas encore complètement traitée, toujours afficher "En attente"
+  const key = traite && decision ? decision : "EN_ATTENTE";
   const config = STATUT_CONFIG[key];
   return <Badge variant={config.variant}>{config.label}</Badge>;
 };
@@ -167,7 +176,7 @@ export const FDMPage = () => {
         <TableCell className="font-semibold">
           {formatCurrency(fdm.totalEstimatif)}
         </TableCell>
-        <TableCell>{formatDecisionBadge(fdm.traitementPrecedent?.decision)}</TableCell>
+        <TableCell>{formatDecisionBadge(fdm.traitementPrecedent?.decision, fdm.traite)}</TableCell>
         <TableCell>
           <Badge variant={fdm.regler ? "outline" : "secondary"}>
             {fdm.regler ? "Réglée" : "Non réglée"}
@@ -205,7 +214,7 @@ export const FDMPage = () => {
         <TableCell className="font-semibold">
           {formatCurrency(bonpour.montantTotal)}
         </TableCell>
-        <TableCell>{formatDecisionBadge(bonpour.traitementPrecedent?.decision)}</TableCell>
+        <TableCell>{formatDecisionBadge(bonpour.traitementPrecedent?.decision, bonpour.traite)}</TableCell>
         <TableCell>
           <Badge variant={bonpour.regler ? "outline" : "secondary"}>
             {bonpour.regler ? "Réglé" : "Non réglé"}
@@ -245,7 +254,7 @@ export const FDMPage = () => {
         <TableCell>
           {formatCurrency(rapport.montantDepense ?? rapport.totalDepenses)}
         </TableCell>
-        <TableCell>{formatDecisionBadge(rapport.traitementPrecedent?.decision)}</TableCell>
+        <TableCell>{formatDecisionBadge(rapport.traitementPrecedent?.decision, rapport.traite)}</TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-2">
             <Button variant="ghost" size="icon" onClick={() => openDetails("RFDM", rapport)} title="Voir les détails">
@@ -278,7 +287,7 @@ export const FDMPage = () => {
         <TableCell>{demande.service}</TableCell>
         <TableCell>{demande.client}</TableCell>
         <TableCell>{formatCurrency(demande.prixTotal, "€")}</TableCell>
-        <TableCell>{formatDecisionBadge(demande.traitementPrecedent?.decision)}</TableCell>
+        <TableCell>{formatDecisionBadge(demande.traitementPrecedent?.decision, demande.traite)}</TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-2">
             <Button variant="ghost" size="icon" onClick={() => openDetails("DDA", demande)} title="Voir les détails">
