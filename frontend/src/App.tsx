@@ -86,10 +86,14 @@ export default function App() {
               </PrivateRoute>
             }
           >
-            <Route index element={<UserDashboard />} />
+            <Route index element={<Navigate to="/user/dashboard" replace />} />
+            <Route path="dashboard" element={<UserDashboard />} />
             <Route path="demandes" element={<FDMPage />} />
             <Route path="demandes/new" element={<RequestPage />} />
-            <Route path="demandes/:type/edit/:reference" element={<EditRequestPage />} />
+            <Route
+              path="demandes/:type/edit/:reference"
+              element={<EditRequestPage />}
+            />
             <Route
               path="validations"
               element={
